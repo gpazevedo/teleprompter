@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { parseSpeech, countSentences, buildItemTimings } from "./speechUtils.js";
+import { C, btnSmall, ScanLines, Vignette, FilePicker, b64ToBlob, useAudioDevices, DeviceSelect } from "./shared.jsx";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -13,31 +14,6 @@ const FONT_STEP     = 4;
 
 const decFontSize = s => Math.max(FONT_MIN, s - FONT_STEP);
 const incFontSize = s => Math.min(FONT_MAX, s + FONT_STEP);
-
-// Amber phosphor palette
-const C = {
-  bg:         "#080705",
-  bgControls: "#0c0b09",
-  text:       "#ddd0b4",
-  textBold:   "#f2e8d2",
-  textFaint:  "rgba(237,224,196,0.35)",
-  amber:      "#ffaa22",
-  amberDim:   "rgba(255,170,34,0.5)",
-  amberFaint: "rgba(255,170,34,0.15)",
-  section:    "#b87830",
-  divider:    "rgba(255,255,255,0.06)",
-};
-
-const btnSmall = {
-  background:   "rgba(255,255,255,0.05)",
-  color:        "rgba(255,255,255,0.45)",
-  border:       "1px solid rgba(255,255,255,0.08)",
-  borderRadius: 5,
-  padding:      "3px 10px",
-  fontSize:     13,
-  cursor:       "pointer",
-  fontFamily:   "'Courier Prime', 'Courier New', monospace",
-};
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -66,6 +42,9 @@ export default function Teleprompter() {
   const intervalRef = useRef(null);
   const speedRef    = useRef(speed);
   const accumRef    = useRef(0);
+
+  // Audio devices
+  const { audioOutputs, selectedOutput, setSelectedOutput } = useAudioDevices();
 
   // Refs — TTS
   const audioRef     = useRef(null);
@@ -185,6 +164,15 @@ export default function Teleprompter() {
     setTtsActive(false);
   }, []);
 
+  // ── Hot-swap audio output device during TTS playback ─────────────────────
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (audio?.setSinkId && selectedOutput) {
+      audio.setSinkId(selectedOutput);
+    }
+  }, [selectedOutput]);
+
   // ── Cleanup on unmount (after stopTts is declared) ───────────────────────
 
   useEffect(() => () => stopTts(), [stopTts]);
@@ -232,14 +220,12 @@ export default function Teleprompter() {
 
       if (ctrl.signal.aborted) return;
 
-      // Decode base64 → blob → object URL
-      const binary = atob(audio_b64);
-      const bytes = new Uint8Array(binary.length).map((_, i) => binary.charCodeAt(i));
-      const blob = new Blob([bytes], { type: "audio/mpeg" });
-      const blobUrl = URL.createObjectURL(blob);
-
+      const blobUrl = b64ToBlob(audio_b64);
       const audio = new Audio(blobUrl);
       audio._blobUrl = blobUrl;
+      if (selectedOutput && audio.setSinkId) {
+        await audio.setSinkId(selectedOutput);
+      }
       audio.playbackRate = speedRef.current;
       audioRef.current = audio;
 
@@ -312,7 +298,7 @@ export default function Teleprompter() {
     } finally {
       abortRef.current = null;
     }
-  }, [ttsActive, stopTts, speech, voice, itemAtGuide]);
+  }, [ttsActive, stopTts, speech, voice, itemAtGuide, selectedOutput]);
 
   // ── Reset ────────────────────────────────────────────────────────────────
 
@@ -355,7 +341,7 @@ export default function Teleprompter() {
 
   return (
     <div style={{
-      position: "fixed", inset: 0,
+      position: "relative", width: "100%", height: "100%",
       background: C.bg,
       fontFamily: "'EB Garamond', Georgia, serif",
       display: "flex", flexDirection: "column", overflow: "hidden",
@@ -621,6 +607,13 @@ export default function Teleprompter() {
 
           <div style={{ width: 1, height: 24, background: C.divider }} />
 
+          {/* Output device */}
+          <DeviceSelect label="OUTPUT" value={selectedOutput} onChange={setSelectedOutput}
+            options={audioOutputs.map(d => ({ value: d.deviceId, label: d.label }))}
+            maxWidth={160} />
+
+          <div style={{ width: 1, height: 24, background: C.divider }} />
+
           {/* Mirror */}
           <button
             onClick={() => setMirrored(m => !m)}
@@ -654,80 +647,3 @@ export default function Teleprompter() {
   );
 }
 
-// ─── Shared overlays ──────────────────────────────────────────────────────────
-
-const ScanLines = () => (
-  <div style={{
-    position: "absolute", inset: 0, pointerEvents: "none", zIndex: 20,
-    background: "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.055) 3px, rgba(0,0,0,0.055) 4px)",
-  }} />
-);
-
-const Vignette = ({ style }) => (
-  <div style={{
-    position: "absolute", inset: 0, pointerEvents: "none",
-    background: "radial-gradient(ellipse 110% 100% at 50% 45%, transparent 38%, rgba(4,3,2,0.65) 100%)",
-    ...style,
-  }} />
-);
-
-// ─── File picker screen ───────────────────────────────────────────────────────
-
-function FilePicker({ onFile }) {
-  return (
-    <div style={{
-      position: "fixed", inset: 0,
-      background: C.bg,
-      display: "flex", flexDirection: "column",
-      alignItems: "center", justifyContent: "center",
-      fontFamily: "'Courier Prime', 'Courier New', monospace",
-      color: C.text,
-      gap: 32,
-    }}>
-      <ScanLines />
-      {/* Vignette */}
-      <div style={{
-        position: "absolute", inset: 0, pointerEvents: "none",
-        background: "radial-gradient(ellipse 80% 80% at 50% 50%, transparent 30%, rgba(4,3,2,0.75) 100%)",
-      }} />
-
-      <div style={{ position: "relative", textAlign: "center", zIndex: 1 }}>
-        <div style={{
-          fontSize: 11, letterSpacing: 8, color: C.section,
-          textTransform: "uppercase", marginBottom: 16,
-        }}>
-          ◆ Teleprompter
-        </div>
-        <div style={{
-          fontFamily: "'EB Garamond', Georgia, serif",
-          fontSize: 28, color: C.textBold, letterSpacing: 1,
-          textShadow: "0 0 40px rgba(255,200,100,0.08)",
-        }}>
-          Load your speech
-        </div>
-      </div>
-
-      <label
-        style={{
-          position: "relative", zIndex: 1,
-          display: "flex", flexDirection: "column", alignItems: "center", gap: 12,
-          border: `1px solid ${C.divider}`,
-          borderRadius: 8, padding: "36px 60px",
-          cursor: "pointer",
-          background: "rgba(255,255,255,0.02)",
-          transition: "border-color 0.2s, background 0.2s",
-        }}
-        onMouseEnter={e => { e.currentTarget.style.borderColor = C.amberDim; e.currentTarget.style.background = C.amberFaint; }}
-        onMouseLeave={e => { e.currentTarget.style.borderColor = C.divider; e.currentTarget.style.background = "rgba(255,255,255,0.02)"; }}
-      >
-        <div style={{ fontSize: 36, lineHeight: 1 }}>◉</div>
-        <div style={{ fontSize: 13, color: C.textFaint, letterSpacing: 2 }}>CHOOSE .TXT FILE</div>
-        <input type="file" accept=".txt" onChange={onFile} style={{ display: "none" }} />
-      </label>
-
-      <div style={{ position: "relative", zIndex: 1, fontSize: 10, color: "rgba(255,255,255,0.15)", letterSpacing: 2 }}>
-        Plain text · ## sections · **bold** · --- breaks
-      </div>
-    </div>
-  );
-}
