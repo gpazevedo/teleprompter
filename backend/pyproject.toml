@@ -3,9 +3,11 @@ name = "teleprompter-backend"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 dependencies = [
     "edge-tts>=7.2.7",
     "fastapi>=0.135.1",
+    "faster-whisper>=1.2.1",
+    "imageio-ffmpeg>=0.6.0",
     "uvicorn[standard]>=0.41.0",
 ]

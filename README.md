@@ -1,37 +1,17 @@
 # Teleprompter
 
-Browser-based teleprompter for Toastmasters and public speakers. Smooth auto-scroll with adjustable speed, font size, mirror mode, and text-to-speech with synchronized scrolling.
+Browser-based teleprompter and pronunciation trainer for Toastmasters and public speakers. Amber phosphor broadcast aesthetic.
 
 ## Stack
 
-- **Frontend** — React 18 + Vite, inline CSS (amber phosphor aesthetic), Vitest unit tests
-- **Backend** — FastAPI + Python `edge-tts`, served via `uvicorn`
+- **Frontend** — React 18 + Vite, inline CSS, Vitest unit tests
+- **Backend** — FastAPI + `edge-tts` (TTS) + `faster-whisper` (speech recognition), served via `uvicorn`
 - **Packaging** — Multi-stage Docker image (node build → python runtime)
 
-## Run locally
+## Panels
 
-```bash
-# Backend (from backend/)
-uv run uvicorn main:app --reload   # http://localhost:8000
-
-# Frontend (from frontend/)
-npm install
-npm run dev                        # http://localhost:5173
-npm test                           # unit tests
-```
-
-## Run with Docker
-
-```bash
-docker build -t teleprompter .
-docker run -p 8000:8000 teleprompter   # http://localhost:8000
-```
-
-## Usage
-
-Load a `.txt` speech file using the file picker (or the **load file** link in the controls bar). The file is read locally — never uploaded.
-
-## Controls
+### Speaker
+Teleprompter with smooth auto-scroll and TTS narration.
 
 | Action | Keyboard | UI |
 |---|---|---|
@@ -42,7 +22,35 @@ Load a `.txt` speech file using the file picker (or the **load file** link in th
 | Reset | `R` | RESET button |
 | Mirror | `M` | MIRROR button |
 
-Speed can be adjusted live during TTS playback — voice and scroll respond immediately.
+Speed adjusts live during TTS playback — voice and scroll respond immediately. Select text before pressing T to speak only the selection.
+
+### Tutor
+Pronunciation practice: load reference text, speak into the mic, compare your speech to the original with color-coded word-level diff.
+
+- **Green** — correctly recognized words
+- **Amber** — extra words (added/substituted)
+- **Red strikethrough** — missing words (skipped)
+
+Whisper model and language are selectable. Mic and audio output can be switched live.
+
+## Run locally
+
+```bash
+# Backend (from backend/)
+uv run uvicorn main:app --reload   # http://localhost:8000
+
+# Frontend (from frontend/)
+npm install
+npm run dev                        # http://localhost:5173 (proxies /api to :8000)
+npm test                           # unit tests
+```
+
+## Run with Docker
+
+```bash
+docker build -t teleprompter .
+docker run -p 8000:8000 teleprompter   # http://localhost:8000
+```
 
 ## Speech file format
 
@@ -52,3 +60,5 @@ Speed can be adjusted live during TTS playback — voice and scroll respond imme
 ---                  → visual spacer
 Regular line         → normal paragraph
 ```
+
+Files are loaded via the browser FileReader API — never uploaded to the server.
