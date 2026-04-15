@@ -1,0 +1,249 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1380 850" font-family="monospace" font-size="12">
+  <defs>
+    <style>
+      .title      { font-size: 18px; font-weight: bold; fill: #ffaa22; }
+      .lbl-browser{ font-size: 11px; font-weight: bold; fill: #ffaa22;  letter-spacing: 2px; }
+      .lbl-backend{ font-size: 11px; font-weight: bold; fill: #5599ff;  letter-spacing: 2px; }
+      .lbl-ext    { font-size: 11px; font-weight: bold; fill: #aa77ff;  letter-spacing: 2px; }
+      .lbl-speaker{ font-size: 13px; font-weight: bold; fill: #ffdd77; }
+      .lbl-tutor  { font-size: 13px; font-weight: bold; fill: #44ddee; }
+      .lbl-shared { font-size: 13px; font-weight: bold; fill: #55ccbb; }
+      .lbl-get    { font-size: 14px; font-weight: bold; fill: #66ffaa; }
+      .lbl-post   { font-size: 14px; font-weight: bold; fill: #ffaa55; }
+      .lbl-ws     { font-size: 14px; font-weight: bold; fill: #44ddff; }
+      .lbl-cache  { font-size: 13px; font-weight: bold; fill: #bb99ff; }
+      .lbl-azure  { font-size: 13px; font-weight: bold; fill: #ff88aa; }
+      .lbl-fwhisp { font-size: 13px; font-weight: bold; fill: #bb88ff; }
+      .det-speaker{ font-size: 10px; fill: #cc9933; }
+      .det-tutor  { font-size: 10px; fill: #2299aa; }
+      .det-shared { font-size: 10px; fill: #338877; }
+      .det-get    { font-size: 11px; fill: #339966; }
+      .det-post   { font-size: 11px; fill: #bb6633; }
+      .det-ws     { font-size: 11px; fill: #2288aa; }
+      .det-cache  { font-size: 10px; fill: #7755bb; }
+      .det-ext    { font-size: 10px; fill: #886699; }
+      .det-proxy  { font-size: 10px; fill: #889955; }
+      .det-main   { font-size: 10px; fill: #888866; }
+      .sub-speaker{ font-size: 10px; font-weight: bold; fill: #ffdd88; }
+      .sub-tutor  { font-size: 10px; font-weight: bold; fill: #55ddee; }
+      .sub-ws     { font-size: 11px; font-weight: bold; fill: #55ccee; }
+    </style>
+    <marker id="arr-http" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#ffaa22"/>
+    </marker>
+    <marker id="arr-ws" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#22ccff"/>
+    </marker>
+    <marker id="arr-resp" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#887744"/>
+    </marker>
+    <marker id="arr-shared" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#44aa99"/>
+    </marker>
+    <marker id="arr-ext" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#7744aa"/>
+    </marker>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1380" height="850" fill="#060608"/>
+
+  <!-- Title -->
+  <text x="690" y="36" text-anchor="middle" class="title" filter="url(#glow)">TELEPROMPTER — FUNCTIONAL ARCHITECTURE</text>
+  <line x1="60" y1="48" x2="1320" y2="48" stroke="#ffaa22" stroke-width="0.5" opacity="0.4"/>
+
+  <!-- ══════════════ BROWSER (x=60→680, y=60→780) ══════════════ -->
+  <rect x="60" y="60" width="620" height="720" rx="6" fill="#0e0a02"/>
+  <rect x="60" y="60" width="620" height="720" rx="6" fill="none" stroke="#ffaa22" stroke-width="1.5"/>
+  <text x="350" y="82" text-anchor="middle" class="lbl-browser">BROWSER</text>
+
+  <!-- Tab bar -->
+  <rect x="80" y="92" width="580" height="30" rx="3" fill="#100c02"/>
+  <rect x="80" y="92" width="580" height="30" rx="3" fill="none" stroke="#887722" stroke-width="1"/>
+  <text x="200" y="112" text-anchor="middle" class="lbl-speaker">SPEAKER tab</text>
+  <text x="460" y="112" text-anchor="middle" class="lbl-tutor">TUTOR tab</text>
+  <line x1="350" y1="92" x2="350" y2="122" stroke="#887722" stroke-width="1"/>
+  <text x="350" y="138" text-anchor="middle" class="det-main">main.jsx — tab bar, display-toggle mount (both panels always in DOM)</text>
+
+  <!-- ── SPEAKER panel (y=148→538) ── -->
+  <rect x="80" y="148" width="270" height="390" rx="4" fill="#0e0b01"/>
+  <rect x="80" y="148" width="270" height="390" rx="4" fill="none" stroke="#cc9922" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="215" y="167" text-anchor="middle" class="lbl-speaker">teleprompter.jsx</text>
+  <text x="96" y="188" class="det-speaker">• FilePicker — load speech file</text>
+  <text x="96" y="204" class="det-speaker">• Parse → section/paragraph items</text>
+  <text x="96" y="220" class="det-speaker">• Guide line @ 38% viewport height</text>
+  <text x="96" y="252" class="sub-speaker">Manual scroll mode</text>
+  <text x="96" y="268" class="det-speaker">  rAF loop · speedRef (no re-render)</text>
+  <text x="96" y="284" class="det-speaker">  accumRef sub-pixel accumulation</text>
+  <text x="96" y="316" class="sub-speaker">TTS + sync scroll mode</text>
+  <text x="96" y="332" class="det-speaker">  POST /api/speak → {audio_b64,</text>
+  <text x="96" y="348" class="det-speaker">    boundaries[]}</text>
+  <text x="96" y="364" class="det-speaker">  Audio blob URL + playbackRate</text>
+  <text x="96" y="380" class="det-speaker">  rAF syncs scrollTop via</text>
+  <text x="96" y="396" class="det-speaker">    audio.currentTime ↔ boundary ms</text>
+  <text x="96" y="428" class="sub-speaker">Output device</text>
+  <text x="96" y="444" class="det-speaker">  useEffect → audio.setSinkId()</text>
+  <text x="96" y="460" class="det-speaker">  hot-swap mid-playback</text>
+  <text x="96" y="492" class="det-speaker">speechUtils.js</text>
+  <text x="96" y="508" class="det-speaker">  parseSpeech · buildItemTimings</text>
+  <text x="96" y="524" class="det-speaker">  countSentences</text>
+
+  <!-- ── TUTOR panel (y=148→648) ── -->
+  <rect x="370" y="148" width="290" height="500" rx="4" fill="#010e10"/>
+  <rect x="370" y="148" width="290" height="500" rx="4" fill="none" stroke="#1a9aaa" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="515" y="167" text-anchor="middle" class="lbl-tutor">tutor.jsx</text>
+  <text x="386" y="188" class="det-tutor">• FilePicker — load reference text</text>
+  <text x="386" y="204" class="det-tutor">• Language + model selector</text>
+  <text x="386" y="220" class="det-tutor">• Mic / output device pickers</text>
+  <text x="386" y="248" class="sub-tutor">States: idle → starting →</text>
+  <text x="386" y="264" class="sub-tutor">  listening → processing → finished</text>
+  <text x="386" y="292" class="sub-tutor">Listen flow</text>
+  <text x="386" y="308" class="det-tutor">  getUserMedia(mic)</text>
+  <text x="386" y="324" class="det-tutor">  AudioContext → AnalyserNode</text>
+  <text x="386" y="340" class="det-tutor">  AudioLevelMeter (DOM direct write,</text>
+  <text x="386" y="356" class="det-tutor">    no React state, 60fps rAF)</text>
+  <text x="386" y="372" class="det-tutor">  MediaRecorder → 1s webm chunks</text>
+  <text x="386" y="388" class="det-tutor">  Silence detector (300ms default)</text>
+  <text x="386" y="404" class="det-tutor">    → send pause_detected</text>
+  <text x="386" y="432" class="sub-tutor">Mic hot-swap</text>
+  <text x="386" y="448" class="det-tutor">  useEffect on selectedMic</text>
+  <text x="386" y="464" class="det-tutor">  cleanup() → new getUserMedia()</text>
+  <text x="386" y="480" class="det-tutor">  WS stays open</text>
+  <text x="386" y="508" class="sub-tutor">Diff display</text>
+  <text x="386" y="524" class="det-tutor">  diffUtils.js — LCS word diff</text>
+  <text x="386" y="540" class="det-tutor">  match | extra | missing tokens</text>
+  <text x="386" y="568" class="sub-tutor">Pronunciation TTS</text>
+  <text x="386" y="584" class="det-tutor">  LANG_VOICES map → valid voice</text>
+  <text x="386" y="600" class="det-tutor">  playTts() from shared.jsx</text>
+  <text x="386" y="616" class="det-tutor">  abort() on re-play / stop</text>
+
+  <!-- shared.jsx bar (y=660→726) -->
+  <rect x="80" y="660" width="580" height="66" rx="3" fill="#011210"/>
+  <rect x="80" y="660" width="580" height="66" rx="3" fill="none" stroke="#2a8877" stroke-width="1"/>
+  <text x="350" y="677" text-anchor="middle" class="lbl-shared">shared.jsx</text>
+  <text x="350" y="694" text-anchor="middle" class="det-shared">b64ToBlob · playTts · useAudioDevices · DeviceSelect · AudioLevelMeter</text>
+  <text x="350" y="710" text-anchor="middle" class="det-shared">C (palette) · btnSmall · ScanLines · Vignette · FilePicker</text>
+
+  <!-- Vite proxy note (y=734→768) -->
+  <rect x="80" y="734" width="580" height="34" rx="3" fill="#080a04" stroke="#556633" stroke-width="1" stroke-dasharray="3,3"/>
+  <text x="350" y="747" text-anchor="middle" class="det-proxy">DEV: Vite proxy /api → localhost:8000 (HTTP + WebSocket)</text>
+  <text x="350" y="761" text-anchor="middle" class="det-proxy">PROD: FastAPI serves built frontend from /static (SPA fallback)</text>
+
+  <!-- ══════════════ BACKEND (x=720→1080, y=60→650) ══════════════ -->
+  <rect x="720" y="60" width="360" height="590" rx="6" fill="#03080f"/>
+  <rect x="720" y="60" width="360" height="590" rx="6" fill="none" stroke="#3366cc" stroke-width="1.5"/>
+  <text x="900" y="82" text-anchor="middle" class="lbl-backend">BACKEND  (FastAPI / uvicorn)</text>
+
+  <!-- GET /api/voices (y=94→176) -->
+  <rect x="740" y="94" width="320" height="82" rx="3" fill="#021208"/>
+  <rect x="740" y="94" width="320" height="82" rx="3" fill="none" stroke="#339966" stroke-width="1"/>
+  <text x="900" y="114" text-anchor="middle" class="lbl-get">GET /api/voices</text>
+  <text x="756" y="133" class="det-get">edge_tts.list_voices()</text>
+  <text x="756" y="149" class="det-get">  → [{name, locale, gender}]</text>
+  <text x="756" y="165" class="det-get">Called once on mount, populates voice selector</text>
+
+  <!-- POST /api/speak (y=190→318) -->
+  <rect x="740" y="190" width="320" height="128" rx="3" fill="#100800"/>
+  <rect x="740" y="190" width="320" height="128" rx="3" fill="none" stroke="#cc6622" stroke-width="1"/>
+  <text x="900" y="210" text-anchor="middle" class="lbl-post">POST /api/speak</text>
+  <text x="756" y="228" class="det-post">edge_tts.Communicate(text, voice).stream()</text>
+  <text x="756" y="244" class="det-post">  "audio" chunks → BytesIO buffer</text>
+  <text x="756" y="260" class="det-post">  "SentenceBoundary" events</text>
+  <text x="756" y="276" class="det-post">    offset ÷ 10,000 → ms</text>
+  <text x="756" y="292" class="det-post">Returns: {audio_b64, boundaries[]}</text>
+  <text x="756" y="307" class="det-post">AbortController cancels in-flight request</text>
+
+  <!-- WS /api/transcribe (y=332→542) -->
+  <rect x="740" y="332" width="320" height="210" rx="3" fill="#020e12"/>
+  <rect x="740" y="332" width="320" height="210" rx="3" fill="none" stroke="#1188aa" stroke-width="1"/>
+  <text x="900" y="352" text-anchor="middle" class="lbl-ws">WS /api/transcribe</text>
+  <text x="756" y="372" class="sub-ws">Audio pipeline per transcription</text>
+  <text x="756" y="390" class="det-ws">  webm/opus bytes → ffmpeg subprocess</text>
+  <text x="756" y="407" class="det-ws">  pipe:0→pipe:1, f32le 16kHz mono</text>
+  <text x="756" y="424" class="det-ws">  numpy float32 → WhisperModel</text>
+  <text x="756" y="441" class="det-ws">  vad_filter=True, silence=500ms</text>
+  <text x="756" y="458" class="det-ws">  segments[] → joined text</text>
+  <text x="756" y="478" class="sub-ws">Concurrency</text>
+  <text x="756" y="496" class="det-ws">  asyncio.to_thread (CPU-bound)</text>
+  <text x="756" y="513" class="det-ws">  partial_task guard (no double-fire)</text>
+  <text x="756" y="530" class="det-ws">  stop → cancel partial → final</text>
+
+  <!-- WhisperModel cache (y=556→638) -->
+  <rect x="740" y="556" width="320" height="82" rx="3" fill="#08040f"/>
+  <rect x="740" y="556" width="320" height="82" rx="3" fill="none" stroke="#7744bb" stroke-width="1"/>
+  <text x="900" y="576" text-anchor="middle" class="lbl-cache">WhisperModel cache</text>
+  <text x="756" y="594" class="det-cache">_whisper_models: dict[str, WhisperModel]</text>
+  <text x="756" y="610" class="det-cache">compute_type="int8" (quantized, CPU)</text>
+  <text x="756" y="626" class="det-cache">Shared across connections, process lifetime</text>
+
+  <!-- ══════════════ EXTERNAL (x=1100→1360, y=60→650) ══════════════ -->
+  <rect x="1100" y="60" width="260" height="590" rx="6" fill="#07040e"/>
+  <rect x="1100" y="60" width="260" height="590" rx="6" fill="none" stroke="#6633aa" stroke-width="1" stroke-dasharray="5,4"/>
+  <text x="1230" y="82" text-anchor="middle" class="lbl-ext">EXTERNAL</text>
+
+  <!-- Azure Neural TTS — aligned with POST /api/speak -->
+  <rect x="1116" y="190" width="228" height="128" rx="4" fill="#0f0208"/>
+  <rect x="1116" y="190" width="228" height="128" rx="4" fill="none" stroke="#993355" stroke-width="1"/>
+  <text x="1230" y="214" text-anchor="middle" class="lbl-azure">Azure Neural TTS</text>
+  <text x="1230" y="234" text-anchor="middle" class="det-ext">edge-tts (unofficial streaming API)</text>
+  <text x="1230" y="254" text-anchor="middle" class="det-ext">streams audio chunks +</text>
+  <text x="1230" y="272" text-anchor="middle" class="det-ext">SentenceBoundary events</text>
+  <text x="1230" y="292" text-anchor="middle" class="det-ext">over HTTPS</text>
+
+  <!-- faster-whisper — aligned with WS /api/transcribe -->
+  <rect x="1116" y="332" width="228" height="210" rx="4" fill="#080310"/>
+  <rect x="1116" y="332" width="228" height="210" rx="4" fill="none" stroke="#6633aa" stroke-width="1"/>
+  <text x="1230" y="360" text-anchor="middle" class="lbl-fwhisp">faster-whisper</text>
+  <text x="1230" y="380" text-anchor="middle" class="det-ext">local editable install</text>
+  <text x="1230" y="404" text-anchor="middle" class="det-ext">CTranslate2 engine</text>
+  <text x="1230" y="422" text-anchor="middle" class="det-ext">int8 quantized, CPU</text>
+  <text x="1230" y="440" text-anchor="middle" class="det-ext">VAD filter built-in</text>
+  <text x="1230" y="464" text-anchor="middle" class="det-ext">model cached across</text>
+  <text x="1230" y="482" text-anchor="middle" class="det-ext">connections via</text>
+  <text x="1230" y="500" text-anchor="middle" class="det-ext">WhisperModel cache</text>
+  <text x="1230" y="524" text-anchor="middle" class="det-ext">OSS/faster-whisper</text>
+
+  <!-- ══════════════ ARROWS (no labels) ══════════════ -->
+
+  <!-- Speaker → GET /api/voices -->
+  <line x1="350" y1="200" x2="738" y2="135" stroke="#44cc88" stroke-width="1.2" marker-end="url(#arr-http)"/>
+
+  <!-- Speaker → POST /api/speak -->
+  <line x1="350" y1="370" x2="738" y2="260" stroke="#ff8844" stroke-width="1.4" marker-end="url(#arr-http)"/>
+
+  <!-- Tutor → WS /api/transcribe -->
+  <line x1="660" y1="400" x2="738" y2="437" stroke="#22ccff" stroke-width="1.4" marker-end="url(#arr-ws)"/>
+
+  <!-- WS → Tutor (transcript response, dashed) -->
+  <line x1="738" y1="460" x2="660" y2="440" stroke="#1188aa" stroke-width="1" stroke-dasharray="5,3" marker-end="url(#arr-resp)"/>
+
+  <!-- shared.jsx → Speaker panel -->
+  <line x1="215" y1="660" x2="215" y2="540" stroke="#44aa99" stroke-width="1.2" marker-end="url(#arr-shared)"/>
+
+  <!-- shared.jsx → Tutor panel -->
+  <line x1="515" y1="660" x2="515" y2="650" stroke="#44aa99" stroke-width="1.2" marker-end="url(#arr-shared)"/>
+
+  <!-- POST /api/speak → Azure TTS (horizontal) -->
+  <line x1="1060" y1="254" x2="1116" y2="254" stroke="#884466" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arr-ext)"/>
+
+  <!-- WS /api/transcribe → faster-whisper (horizontal) -->
+  <line x1="1060" y1="437" x2="1116" y2="437" stroke="#664499" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arr-ext)"/>
+
+  <!-- ══════════════ LEGEND — below BACKEND/EXTERNAL ══════════════ -->
+  <!-- row 1 -->
+  <line x1="730" y1="670" x2="762" y2="670" stroke="#ffaa22" stroke-width="1.5" marker-end="url(#arr-http)"/>
+  <text x="770" y="675" font-size="12" fill="#ffaa22">HTTP request</text>
+  <line x1="960" y1="670" x2="992" y2="670" stroke="#22ccff" stroke-width="1.5" marker-end="url(#arr-ws)"/>
+  <text x="1000" y="675" font-size="12" fill="#22ccff">WebSocket</text>
+  <line x1="1174" y1="670" x2="1206" y2="670" stroke="#1188aa" stroke-width="1" stroke-dasharray="5,3" marker-end="url(#arr-resp)"/>
+  <text x="1214" y="675" font-size="12" fill="#1188aa">response</text>
+  <!-- row 2 -->
+  <line x1="844" y1="692" x2="876" y2="692" stroke="#44aa99" stroke-width="1.2" marker-end="url(#arr-shared)"/>
+  <text x="884" y="697" font-size="12" fill="#44aa99">shared utility</text>
+  <line x1="1108" y1="692" x2="1140" y2="692" stroke="#664499" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arr-ext)"/>
+  <text x="1148" y="697" font-size="12" fill="#664499">external call</text>
+</svg>

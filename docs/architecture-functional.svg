@@ -1,0 +1,267 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1260 710" font-family="'Georgia', serif" font-size="12">
+  <defs>
+    <style>
+      .title       { font-size: 18px; font-weight: bold; fill: #ffaa22; letter-spacing: 1px; }
+      .zone-label  { font-size: 11px; font-weight: bold; letter-spacing: 2px; }
+      .panel-title { font-size: 14px; font-weight: bold; }
+      .feat-title  { font-size: 12px; font-weight: bold; }
+      .feat-desc   { font-size: 11px; }
+      .flow-label  { font-size: 10px; font-weight: bold; font-family: monospace; }
+    </style>
+    <marker id="arr-amber"  markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#ffaa22"/>
+    </marker>
+    <marker id="arr-cyan"   markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#22ccff"/>
+    </marker>
+    <marker id="arr-teal"   markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#44aa99"/>
+    </marker>
+    <marker id="arr-purple" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#9966cc"/>
+    </marker>
+    <marker id="arr-back"   markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#667755"/>
+    </marker>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2.5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glow-sm">
+      <feGaussianBlur stdDeviation="1.5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1260" height="820" fill="#060608"/>
+
+  <!-- Title -->
+  <text x="630" y="34" text-anchor="middle" class="title" filter="url(#glow)">TELEPROMPTER — FUNCTIONAL OVERVIEW</text>
+  <line x1="50" y1="46" x2="1210" y2="46" stroke="#ffaa22" stroke-width="0.5" opacity="0.35"/>
+
+  <!-- ════════════════════════════════════════
+       ZONE: BROWSER  (x=50..730)
+       ════════════════════════════════════════ -->
+  <rect x="50"  y="56" width="680" height="626" rx="6" fill="#0c0900"/>
+  <rect x="50"  y="56" width="680" height="626" rx="6" fill="none" stroke="#ffaa22" stroke-width="1.5"/>
+  <text x="390" y="76" text-anchor="middle" class="zone-label" fill="#ffaa22">BROWSER</text>
+
+  <!-- Tab bar -->
+  <rect x="70" y="86" width="640" height="28" rx="3" fill="#120d02"/>
+  <rect x="70" y="86" width="640" height="28" rx="3" fill="none" stroke="#887722" stroke-width="1"/>
+  <text x="235" y="105" text-anchor="middle" font-size="12" font-weight="bold" fill="#ffdd77">SPEAKER</text>
+  <text x="555" y="105" text-anchor="middle" font-size="12" font-weight="bold" fill="#44ddee">TUTOR</text>
+  <line x1="390" y1="86" x2="390" y2="114" stroke="#887722" stroke-width="1"/>
+  <text x="390" y="128" text-anchor="middle" font-size="10" fill="#665533">Two independent panels — both always mounted, toggled by tab selection</text>
+
+  <!-- ── SPEAKER PANEL (x=70..370, y=136..640) ── -->
+  <rect x="70"  y="136" width="300" height="320" rx="4" fill="#0e0b01"/>
+  <rect x="70"  y="136" width="300" height="320" rx="4" fill="none" stroke="#cc9922" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="220" y="156" text-anchor="middle" class="panel-title" fill="#ffdd77">Speaker Panel</text>
+  <text x="220" y="172" text-anchor="middle" font-size="10" fill="#996633">Teleprompter for public speaking practice</text>
+
+  <!-- Feature 1: Load text -->
+  <rect x="86" y="182" width="268" height="48" rx="3" fill="#18120200" stroke="#554422" stroke-width="0.8"/>
+  <text x="102" y="199" class="feat-title" fill="#ffcc55">Load speech text</text>
+  <text x="102" y="215" class="feat-desc" fill="#997744">File picker — loads text from local disk,</text>
+  <text x="102" y="227" class="feat-desc" fill="#997744">parses sections, paragraphs, separators</text>
+
+  <!-- Feature 2: Manual scroll -->
+  <rect x="86" y="238" width="268" height="60" rx="3" fill="#18120200" stroke="#554422" stroke-width="0.8"/>
+  <text x="102" y="256" class="feat-title" fill="#ffcc55">Manual auto-scroll</text>
+  <text x="102" y="272" class="feat-desc" fill="#997744">Scrolls text at adjustable speed.</text>
+  <text x="102" y="284" class="feat-desc" fill="#997744">Guide line at 38% viewport marks reading position.</text>
+  <text x="102" y="296" class="feat-desc" fill="#997744">Smooth sub-pixel accumulation, no stalling.</text>
+
+  <!-- Feature 3: TTS + sync scroll -->
+  <rect x="86" y="306" width="268" height="80" rx="3" fill="#18120200" stroke="#554422" stroke-width="0.8"/>
+  <text x="102" y="324" class="feat-title" fill="#ffcc55">TTS read-aloud + synchronized scroll</text>
+  <text x="102" y="340" class="feat-desc" fill="#997744">Sends text to backend for speech synthesis.</text>
+  <text x="102" y="352" class="feat-desc" fill="#997744">Plays back audio while scrolling in sync</text>
+  <text x="102" y="364" class="feat-desc" fill="#997744">with sentence boundaries (ms-level timing).</text>
+  <text x="102" y="376" class="feat-desc" fill="#997744">Speed slider controls both audio and scroll live.</text>
+  <text x="102" y="384" class="feat-desc" fill="#997744">Can read from any point or from guide line.</text>
+
+  <!-- Feature 4: device -->
+  <rect x="86" y="394" width="268" height="48" rx="3" fill="#18120200" stroke="#554422" stroke-width="0.8"/>
+  <text x="102" y="412" class="feat-title" fill="#ffcc55">Audio output device</text>
+  <text x="102" y="428" class="feat-desc" fill="#997744">Choose playback device (speaker/headphones).</text>
+  <text x="102" y="440" class="feat-desc" fill="#997744">Hot-swap mid-playback with no interruption.</text>
+
+  <!-- ── TUTOR PANEL (x=390..720, y=136..692) ── -->
+  <rect x="390" y="136" width="320" height="390" rx="4" fill="#01100e"/>
+  <rect x="390" y="136" width="320" height="390" rx="4" fill="none" stroke="#1a9aaa" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="550" y="156" text-anchor="middle" class="panel-title" fill="#44ddee">Tutor Panel</text>
+  <text x="550" y="172" text-anchor="middle" font-size="10" fill="#2a7788">Pronunciation trainer with AI transcription</text>
+
+  <!-- Feature: reference text -->
+  <rect x="406" y="182" width="288" height="48" rx="3" fill="#01100e00" stroke="#1a5566" stroke-width="0.8"/>
+  <text x="422" y="199" class="feat-title" fill="#55ddee">Load reference text</text>
+  <text x="422" y="215" class="feat-desc" fill="#2a9988">File picker — loads the text the user</text>
+  <text x="422" y="227" class="feat-desc" fill="#2a9988">intends to practice pronouncing.</text>
+
+  <!-- Feature: config -->
+  <rect x="406" y="238" width="288" height="48" rx="3" fill="#01100e00" stroke="#1a5566" stroke-width="0.8"/>
+  <text x="422" y="256" class="feat-title" fill="#55ddee">Configure session</text>
+  <text x="422" y="272" class="feat-desc" fill="#2a9988">Choose language, Whisper model size,</text>
+  <text x="422" y="284" class="feat-desc" fill="#2a9988">microphone input, and audio output device.</text>
+
+  <!-- Feature: recording -->
+  <rect x="406" y="294" width="288" height="80" rx="3" fill="#01100e00" stroke="#1a5566" stroke-width="0.8"/>
+  <text x="422" y="312" class="feat-title" fill="#55ddee">Record pronunciation</text>
+  <text x="422" y="328" class="feat-desc" fill="#2a9988">Streams mic audio to backend in real time.</text>
+  <text x="422" y="340" class="feat-desc" fill="#2a9988">Silence detector triggers partial transcription</text>
+  <text x="422" y="352" class="feat-desc" fill="#2a9988">automatically after a pause (≈ 300 ms).</text>
+  <text x="422" y="364" class="feat-desc" fill="#2a9988">Live audio level meter (no CPU overhead).</text>
+  <text x="422" y="374" class="feat-desc" fill="#2a9988">Mic hot-swap — switch device mid-session.</text>
+
+  <!-- Feature: diff -->
+  <rect x="406" y="382" width="288" height="64" rx="3" fill="#01100e00" stroke="#1a5566" stroke-width="0.8"/>
+  <text x="422" y="400" class="feat-title" fill="#55ddee">Word-level accuracy diff</text>
+  <text x="422" y="416" class="feat-desc" fill="#2a9988">Compares transcription vs reference word by word</text>
+  <text x="422" y="428" class="feat-desc" fill="#2a9988">using LCS algorithm. Highlights matched, extra,</text>
+  <text x="422" y="440" class="feat-desc" fill="#2a9988">and missing words in distinct colours.</text>
+
+  <!-- Feature: pronunciation TTS -->
+  <rect x="406" y="454" width="288" height="48" rx="3" fill="#01100e00" stroke="#1a5566" stroke-width="0.8"/>
+  <text x="422" y="472" class="feat-title" fill="#55ddee">Hear word pronunciation</text>
+  <text x="422" y="488" class="feat-desc" fill="#2a9988">Click any missed/extra word to hear the correct</text>
+  <text x="422" y="500" class="feat-desc" fill="#2a9988">pronunciation via TTS in the session language.</text>
+
+  <!-- Shared utilities bar -->
+  <rect x="70" y="576" width="640" height="56" rx="3" fill="#011210"/>
+  <rect x="70" y="576" width="640" height="56" rx="3" fill="none" stroke="#2a8877" stroke-width="1"/>
+  <text x="390" y="594" text-anchor="middle" font-size="12" font-weight="bold" fill="#55ccbb">Shared Utilities</text>
+  <text x="390" y="611" text-anchor="middle" font-size="10" fill="#338877">Audio device picker · TTS playback helper · File picker · Audio level meter · Visual components (scan-lines, vignette, guide line)</text>
+  <text x="390" y="625" text-anchor="middle" font-size="10" fill="#336655">Used by both panels — single implementation, consistent behaviour</text>
+
+  <!-- Vite/Docker note -->
+  <rect x="70" y="642" width="640" height="30" rx="3" fill="#080a04" stroke="#445533" stroke-width="1" stroke-dasharray="3,3"/>
+  <text x="390" y="654" text-anchor="middle" font-size="10" fill="#778855">DEV — browser talks to backend via proxy on localhost:8000</text>
+  <text x="390" y="668" text-anchor="middle" font-size="10" fill="#778855">PROD — backend serves the built frontend directly (single container)</text>
+
+  <!-- ════════════════════════════════════════
+       ZONE: BACKEND SERVICES  (x=760..1040)
+       ════════════════════════════════════════ -->
+  <rect x="760" y="56" width="280" height="560" rx="6" fill="#03080f"/>
+  <rect x="760" y="56" width="280" height="560" rx="6" fill="none" stroke="#3366cc" stroke-width="1.5"/>
+  <text x="900" y="76" text-anchor="middle" class="zone-label" fill="#5599ff">BACKEND SERVICES</text>
+  <text x="900" y="92" text-anchor="middle" font-size="10" fill="#334488">FastAPI · runs locally or in Docker</text>
+
+  <!-- Service 1: Voices -->
+  <rect x="776" y="104" width="248" height="76" rx="3" fill="#031508" stroke="#339955" stroke-width="1"/>
+  <text x="900" y="122" text-anchor="middle" font-size="13" font-weight="bold" fill="#66ffaa">Voice Catalogue</text>
+  <text x="792" y="140" font-size="11" fill="#339966">Lists all available neural TTS voices</text>
+  <text x="792" y="156" font-size="11" fill="#339966">grouped by language and gender.</text>
+  <text x="792" y="172" font-size="11" fill="#339966">Fetched once on page load.</text>
+
+  <!-- Service 2: Speak -->
+  <rect x="776" y="192" width="248" height="124" rx="3" fill="#100800" stroke="#cc6622" stroke-width="1"/>
+  <text x="900" y="212" text-anchor="middle" font-size="13" font-weight="bold" fill="#ffaa55">Speech Synthesis</text>
+  <text x="792" y="232" font-size="11" fill="#996633">Converts text to audio using Azure</text>
+  <text x="792" y="248" font-size="11" fill="#996633">Neural TTS (edge-tts streaming API).</text>
+  <text x="792" y="268" font-size="11" fill="#996633">Returns audio + sentence timing</text>
+  <text x="792" y="284" font-size="11" fill="#996633">events so scroll can stay in sync</text>
+  <text x="792" y="300" font-size="11" fill="#996633">with the voice reading aloud.</text>
+  <text x="792" y="314" font-size="11" fill="#996633">Request is cancellable at any time.</text>
+
+  <!-- Service 3: Transcribe -->
+  <rect x="776" y="328" width="248" height="188" rx="3" fill="#020e12" stroke="#1188aa" stroke-width="1"/>
+  <text x="900" y="350" text-anchor="middle" font-size="13" font-weight="bold" fill="#44ddff">Audio Transcription</text>
+  <text x="792" y="370" font-size="11" fill="#2288aa">Receives streaming audio chunks</text>
+  <text x="792" y="386" font-size="11" fill="#2288aa">over WebSocket from the browser.</text>
+  <text x="792" y="406" font-size="11" fill="#2288aa">Converts audio to text using a local</text>
+  <text x="792" y="422" font-size="11" fill="#2288aa">Whisper AI model (no cloud required).</text>
+  <text x="792" y="442" font-size="11" fill="#2288aa">Sends back partial results on silence</text>
+  <text x="792" y="458" font-size="11" fill="#2288aa">and a final result on stop.</text>
+  <text x="792" y="474" font-size="11" fill="#2288aa">Runs AI inference in background so</text>
+  <text x="792" y="490" font-size="11" fill="#2288aa">audio can keep streaming.</text>
+  <text x="792" y="510" font-size="11" fill="#2288aa">Supports pause → resume mid-session.</text>
+
+  <!-- Service 4: Model cache -->
+  <rect x="776" y="528" width="248" height="76" rx="3" fill="#08040f" stroke="#7744bb" stroke-width="1"/>
+  <text x="900" y="548" text-anchor="middle" font-size="13" font-weight="bold" fill="#bb99ff">Model Cache</text>
+  <text x="792" y="566" font-size="11" fill="#7755aa">Whisper models are loaded once and</text>
+  <text x="792" y="582" font-size="11" fill="#7755aa">reused across all sessions, avoiding</text>
+  <text x="792" y="598" font-size="11" fill="#7755aa">slow reloads on each connection.</text>
+
+  <!-- ════════════════════════════════════════
+       ZONE: AI ENGINES  (x=1060..1240)
+       ════════════════════════════════════════ -->
+  <rect x="1060" y="56" width="180" height="560" rx="6" fill="#07040e"/>
+  <rect x="1060" y="56" width="180" height="560" rx="6" fill="none" stroke="#6633aa" stroke-width="1.5" stroke-dasharray="5,4"/>
+  <text x="1150" y="76" text-anchor="middle" class="zone-label" fill="#aa77ff">AI ENGINES</text>
+
+  <!-- Engine 1: Azure TTS — aligned with Speech Synthesis -->
+  <rect x="1076" y="192" width="148" height="124" rx="4" fill="#0f0208" stroke="#993355" stroke-width="1"/>
+  <text x="1150" y="214" text-anchor="middle" font-size="12" font-weight="bold" fill="#ff88aa">Azure Neural TTS</text>
+  <text x="1150" y="234" text-anchor="middle" font-size="10" fill="#885566">Cloud service</text>
+  <text x="1150" y="252" text-anchor="middle" font-size="10" fill="#885566">300+ voices across</text>
+  <text x="1150" y="268" text-anchor="middle" font-size="10" fill="#885566">100+ languages</text>
+  <text x="1150" y="286" text-anchor="middle" font-size="10" fill="#885566">Free tier, no API key</text>
+  <text x="1150" y="304" text-anchor="middle" font-size="10" fill="#885566">needed (edge-tts)</text>
+
+  <!-- Engine 2: Whisper — aligned with Transcription -->
+  <rect x="1076" y="328" width="148" height="214" rx="4" fill="#080310" stroke="#6633aa" stroke-width="1"/>
+  <text x="1150" y="350" text-anchor="middle" font-size="12" font-weight="bold" fill="#bb88ff">Whisper AI</text>
+  <text x="1150" y="370" text-anchor="middle" font-size="10" fill="#7755aa">Runs locally on CPU</text>
+  <text x="1150" y="390" text-anchor="middle" font-size="10" fill="#7755aa">No data sent to cloud</text>
+  <text x="1150" y="412" text-anchor="middle" font-size="10" fill="#7755aa">Selectable model size:</text>
+  <text x="1150" y="430" text-anchor="middle" font-size="10" fill="#7755aa">tiny → large-v3</text>
+  <text x="1150" y="450" text-anchor="middle" font-size="10" fill="#7755aa">(speed vs accuracy)</text>
+  <text x="1150" y="472" text-anchor="middle" font-size="10" fill="#7755aa">Built-in voice activity</text>
+  <text x="1150" y="490" text-anchor="middle" font-size="10" fill="#7755aa">detection (VAD)</text>
+  <text x="1150" y="510" text-anchor="middle" font-size="10" fill="#7755aa">Quantized int8 for</text>
+  <text x="1150" y="528" text-anchor="middle" font-size="10" fill="#7755aa">efficient CPU usage</text>
+
+  <!-- ════════════════════════════════════════
+       FLOW ARROWS
+       ════════════════════════════════════════ -->
+
+  <!-- Speaker → Voice Catalogue (GET voices) -->
+  <path d="M 370 230 Q 565 215 758 143" stroke="#66cc88" stroke-width="1.2" fill="none" marker-end="url(#arr-amber)"/>
+  <text x="540" y="208" class="flow-label" fill="#448855" text-anchor="middle">voice list</text>
+
+  <!-- Speaker → Speech Synthesis (POST speak) -->
+  <line x1="370" y1="355" x2="774" y2="290" stroke="#ff8844" stroke-width="1.4" marker-end="url(#arr-amber)"/>
+  <text x="570" y="315" class="flow-label" fill="#aa5522" text-anchor="middle">text → audio + timings</text>
+
+  <!-- Tutor → Audio Transcription (WS) -->
+  <line x1="710" y1="390" x2="774" y2="430" stroke="#22ccff" stroke-width="1.4" marker-end="url(#arr-cyan)"/>
+  <text x="740" y="402" class="flow-label" fill="#228899" text-anchor="middle" transform="rotate(18,740,402)">audio stream</text>
+
+  <!-- Audio Transcription → Tutor (transcript response, dashed) -->
+  <line x1="774" y1="450" x2="710" y2="440" stroke="#1188aa" stroke-width="1" stroke-dasharray="5,3" marker-end="url(#arr-back)"/>
+  <text x="740" y="468" class="flow-label" fill="#336655" text-anchor="middle">transcript</text>
+
+  <!-- Tutor → Speech Synthesis (word pronunciation) -->
+  <path d="M 710 490 Q 760 500 774 440" stroke="#ffaa55" stroke-width="1" fill="none" stroke-dasharray="4,3" marker-end="url(#arr-amber)"/>
+
+  <!-- Shared → Speaker -->
+  <line x1="220" y1="576" x2="220" y2="458" stroke="#44aa99" stroke-width="1.2" marker-end="url(#arr-teal)"/>
+
+  <!-- Shared → Tutor -->
+  <line x1="560" y1="576" x2="560" y2="528" stroke="#44aa99" stroke-width="1.2" marker-end="url(#arr-teal)"/>
+
+  <!-- Speech Synthesis → Azure TTS -->
+  <line x1="1024" y1="254" x2="1074" y2="254" stroke="#884466" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arr-purple)"/>
+
+  <!-- Transcription → Whisper -->
+  <line x1="1024" y1="437" x2="1074" y2="437" stroke="#664499" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arr-purple)"/>
+
+  <!-- ════════════════════════════════════════
+       LEGEND
+       ════════════════════════════════════════ -->
+  <rect x="760" y="626" width="480" height="56" rx="3" fill="#0a080f" stroke="#333355" stroke-width="0.8"/>
+  <text x="1000" y="644" text-anchor="middle" font-size="11" font-weight="bold" fill="#556688" letter-spacing="2">LEGEND</text>
+
+  <line x1="776" y1="662" x2="808" y2="662" stroke="#ff8844" stroke-width="1.5" marker-end="url(#arr-amber)"/>
+  <text x="816" y="666" font-size="10" fill="#aa6633">HTTP request / response</text>
+
+  <line x1="920" y1="662" x2="952" y2="662" stroke="#22ccff" stroke-width="1.5" marker-end="url(#arr-cyan)"/>
+  <text x="960" y="666" font-size="10" fill="#2288aa">WebSocket stream</text>
+
+  <line x1="1068" y1="662" x2="1100" y2="662" stroke="#664499" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arr-purple)"/>
+  <text x="1108" y="666" font-size="10" fill="#664499">external AI engine call</text>
+</svg>
