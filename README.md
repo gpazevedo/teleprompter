@@ -1,6 +1,8 @@
 # Teleprompter
 
-Browser-based teleprompter and pronunciation trainer for Toastmasters and public speakers. Amber phosphor broadcast aesthetic.
+Browser-based teleprompter and pronunciation trainer for public speakers. Amber phosphor broadcast aesthetic.
+
+![Functional overview](docs/architecture-functional.svg)
 
 ## Stack
 
@@ -11,10 +13,11 @@ Browser-based teleprompter and pronunciation trainer for Toastmasters and public
 ## Panels
 
 ### Speaker
+
 Teleprompter with smooth auto-scroll and TTS narration.
 
 | Action | Keyboard | UI |
-|---|---|---|
+| --- | --- | --- |
 | Play / Pause scroll | `Space` | PLAY button |
 | Speak / Stop TTS | `T` | SPEAK button |
 | Speed (scroll & TTS) | `↑` / `↓` (±0.1x) | Slider (0.1x – 3.0x) |
@@ -25,6 +28,7 @@ Teleprompter with smooth auto-scroll and TTS narration.
 Speed adjusts live during TTS playback — voice and scroll respond immediately. Select text before pressing T to speak only the selection.
 
 ### Tutor
+
 Pronunciation practice: load reference text, speak into the mic, compare your speech to the original with color-coded word-level diff.
 
 - **Green** — correctly recognized words
@@ -45,6 +49,8 @@ npm run dev                        # http://localhost:5173 (proxies /api to :800
 npm test                           # unit tests
 ```
 
+See [backend/README.md](backend/README.md) for API reference, audio pipeline details, and concurrency model.
+
 ## Run with Docker
 
 ```bash
@@ -54,7 +60,7 @@ docker run -p 8000:8000 teleprompter   # http://localhost:8000
 
 ## Speech file format
 
-```
+```text
 ## Section Title     → amber section header
 **Bold line**        → emphasized text
 ---                  → visual spacer
