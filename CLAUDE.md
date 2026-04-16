@@ -43,7 +43,7 @@ Speech files are loaded via FileReader API (file picker). Never uploaded to the 
 
 - **main.py** — FastAPI app:
   - `GET /api/voices` — lists available edge-tts voices
-  - `POST /api/speak` — synthesizes text, returns `{audio_b64, boundaries}` (SentenceBoundary events in ms)
+  - `POST /api/speak` — synthesizes text in chunks of 3 paragraphs, streams NDJSON; each line: `{audio_b64, boundaries, chunk, is_last}`
   - `WS /api/transcribe` — streams audio chunks from browser, returns partial and final transcriptions via faster-whisper
 - **pyproject.toml** / **uv.lock** — managed with `uv`; requires Python 3.12+
 
@@ -72,13 +72,13 @@ Uses `requestAnimationFrame` with `speedRef` (ref, not state) so the loop never 
 
 `speak()` flow:
 1. Collect text (selected text or from guide-line position to end)
-2. POST to `/api/speak`, receive base64 audio + sentence boundary timings
-3. Decode to blob URL, create `Audio` object, set `playbackRate = speedRef.current`
-4. Pre-compute `targetScrollTop` per item using `getBoundingClientRect`
-5. rAF loop syncs `scrollTop` by interpolating between sentence boundary timestamps via `audio.currentTime`
-6. Speed slider updates `audio.playbackRate` and scroll speed live every frame
+2. POST to `/api/speak`, read NDJSON stream — each chunk has `{audio_b64, boundaries, chunk, is_last}`
+3. First chunk starts playing immediately; subsequent chunks queue and play sequentially
+4. When each chunk starts, build its scroll timings via `buildItemTimings` + `getBoundingClientRect`, offset by accumulated prior duration (`globalOffsetMs`)
+5. rAF loop syncs `scrollTop` using `audio.currentTime * 1000 + globalOffsetMs` against a merged timings array
+6. Speed slider updates `audio.playbackRate` and scroll interpolation live every frame
 
-`stopTts()` cancels the AbortController, cancels rAF, pauses and revokes the audio blob URL.
+`stopTts()` cancels the AbortController, cancels rAF, pauses and revokes the current audio blob URL, and revokes all queued blob URLs.
 
 ### b64ToBlob (shared)
 
@@ -86,7 +86,7 @@ Uses `requestAnimationFrame` with `speedRef` (ref, not state) so the loop never 
 
 ### playTts (shared)
 
-Returns `{ abort(), audio }`. `audio` is the live `HTMLAudioElement` (null until fetch resolves) — call `audio.setSinkId(deviceId)` to hot-swap output device mid-playback. `.catch` only fires `onEnd` on non-AbortError to avoid double-firing on intentional stop.
+Returns `{ abort(), audio }`. Reads the NDJSON stream from `/api/speak`, queues audio blobs, and plays them sequentially — `audio` always points to the currently playing `HTMLAudioElement`. `abort()` stops playback and revokes all blob URLs. Used by the Tutor panel for system speak.
 
 ### AudioLevelMeter (shared)
 
@@ -103,7 +103,7 @@ Accepts `barRef` (a React ref to the inner bar `div`). The bar width, background
 
 ### Tutor TTS voices
 
-`LANG_VOICES` maps each language code to a valid Azure Neural voice (e.g. `en → en-US-EricNeural`, `es → es-ES-AlvaroNeural`). Used in `playPronunciation` to avoid constructing invalid voice strings like `es-US-EricNeural`.
+`LANG_VOICES` maps each language code to a valid Azure Neural voice (e.g. `en → en-US-EricNeural`, `es → es-ES-AlvaroNeural`). Used in `playPronunciation` (the "SYSTEM SPEAK" button handler) to avoid constructing invalid voice strings like `es-US-EricNeural`.
 
 ### Mic hot-swap (Tutor)
 

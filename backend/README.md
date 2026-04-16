@@ -24,7 +24,7 @@ Returns available edge-tts voices from the Azure Neural TTS service.
 
 ### `POST /api/speak`
 
-Synthesizes text and returns audio + sentence boundary timings in one response.
+Synthesizes text in chunks of 3 paragraphs and streams the results as NDJSON (`application/x-ndjson`). Each newline-delimited JSON object is one chunk:
 
 #### Request
 
@@ -32,23 +32,20 @@ Synthesizes text and returns audio + sentence boundary timings in one response.
 { "text": "Hello world.", "voice": "en-US-EricNeural" }
 ```
 
-#### Response
+#### Response (NDJSON — one object per line)
 
 ```json
-{
-  "audio_b64": "<base64-encoded MP3>",
-  "boundaries": [
-    { "word": "Hello world.", "offset_ms": 0, "duration_ms": 850 }
-  ]
-}
+{ "audio_b64": "<base64-encoded MP3>", "boundaries": [{ "word": "Hello world.", "offset_ms": 0, "duration_ms": 850 }], "chunk": 0, "is_last": true }
 ```
 
-`edge_tts.Communicate.stream()` is an async generator that yields two event types:
+The text is split on `\n\n` into groups of 3 paragraphs (`split_into_chunks`). Each chunk is synthesized independently so the frontend can start playing the first chunk while the rest are still being synthesized.
 
-- `audio` chunks — raw MP3 bytes, accumulated in a `BytesIO` buffer
+`edge_tts.Communicate.stream()` yields two event types per chunk:
+
+- `audio` events — raw MP3 bytes, accumulated in a `BytesIO` buffer
 - `SentenceBoundary` events — contain `offset` and `duration` in 100-nanosecond units (divided by 10,000 → milliseconds)
 
-The full buffer is base64-encoded and returned together with the boundary list. The frontend uses the boundaries to synchronize scroll position with `audio.currentTime`.
+The frontend reads the stream, plays chunk 0 immediately, queues the rest, and builds scroll timings per chunk as each one starts playing.
 
 ### `WS /api/transcribe`
 

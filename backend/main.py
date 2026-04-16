@@ -10,6 +10,7 @@ import edge_tts
 import imageio_ffmpeg
 import numpy as np
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from faster_whisper import WhisperModel
 from pydantic import BaseModel
@@ -74,28 +75,43 @@ async def list_voices():
     ]
 
 
+CHUNK_SIZE = 3  # paragraphs per streamed chunk
+
+
+def split_into_chunks(text: str) -> list[str]:
+    """Split text into groups of CHUNK_SIZE non-empty paragraphs."""
+    paras = [p.strip() for p in text.split("\n\n") if p.strip()]
+    if not paras:
+        return [text]
+    return ["\n\n".join(paras[i:i + CHUNK_SIZE]) for i in range(0, len(paras), CHUNK_SIZE)]
+
+
 @app.post("/api/speak")
 async def speak(req: SpeakRequest):
-    communicate = edge_tts.Communicate(req.text, req.voice)
-    audio_buf = BytesIO()
-    boundaries = []
+    chunks = split_into_chunks(req.text)
 
-    async for chunk in communicate.stream():
-        if chunk["type"] == "audio":
-            audio_buf.write(chunk["data"])
-        elif chunk["type"] == "SentenceBoundary":
-            boundaries.append(
-                {
-                    "word": chunk["text"],
-                    "offset_ms": chunk["offset"] // 10_000,
-                    "duration_ms": chunk["duration"] // 10_000,
-                }
-            )
+    async def generate():
+        for i, chunk_text in enumerate(chunks):
+            communicate = edge_tts.Communicate(chunk_text, req.voice)
+            audio_buf = BytesIO()
+            boundaries = []
+            async for item in communicate.stream():
+                if item["type"] == "audio":
+                    audio_buf.write(item["data"])
+                elif item["type"] == "SentenceBoundary":
+                    boundaries.append({
+                        "word": item["text"],
+                        "offset_ms": item["offset"] // 10_000,
+                        "duration_ms": item["duration"] // 10_000,
+                    })
+            yield json.dumps({
+                "audio_b64": base64.b64encode(audio_buf.getvalue()).decode(),
+                "boundaries": boundaries,
+                "chunk": i,
+                "is_last": i == len(chunks) - 1,
+            }) + "\n"
 
-    return {
-        "audio_b64": base64.b64encode(audio_buf.getvalue()).decode(),
-        "boundaries": boundaries,
-    }
+    return StreamingResponse(generate(), media_type="application/x-ndjson")
 
 
 @app.websocket("/api/transcribe")
