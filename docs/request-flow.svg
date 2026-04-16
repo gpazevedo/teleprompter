@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1300 1200" font-family="monospace" font-size="13">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1300 1285" font-family="monospace" font-size="13">
 <defs>
   <style>
     .t  { font-size:20px; font-weight:bold; fill:#ffaa22 }
@@ -44,7 +44,7 @@
 </defs>
 
 <!-- background -->
-<rect width="1300" height="1200" fill="#060608"/>
+<rect width="1300" height="1285" fill="#060608"/>
 
 <!-- title -->
 <text x="650" y="35" text-anchor="middle" class="t" filter="url(#glow)">TELEPROMPTER — REQUEST FLOW</text>
@@ -72,11 +72,11 @@
 <text x="1185" y="87" text-anchor="middle" class="pw">+ WHISPER</text>
 
 <!-- lifelines -->
-<line x1="85"   y1="98" x2="85"   y2="1155" stroke="#ffaa22" stroke-width="0.7" stroke-dasharray="4,4" opacity="0.3"/>
-<line x1="295"  y1="98" x2="295"  y2="1155" stroke="#ffdd77" stroke-width="0.7" stroke-dasharray="4,4" opacity="0.3"/>
-<line x1="570"  y1="98" x2="570"  y2="1155" stroke="#5599ff" stroke-width="0.7" stroke-dasharray="4,4" opacity="0.3"/>
-<line x1="865"  y1="98" x2="865"  y2="1155" stroke="#ff88aa" stroke-width="0.7" stroke-dasharray="4,4" opacity="0.3"/>
-<line x1="1185" y1="98" x2="1185" y2="1155" stroke="#bb88ff" stroke-width="0.7" stroke-dasharray="4,4" opacity="0.3"/>
+<line x1="85"   y1="98" x2="85"   y2="1244" stroke="#ffaa22" stroke-width="0.7" stroke-dasharray="4,4" opacity="0.3"/>
+<line x1="295"  y1="98" x2="295"  y2="1244" stroke="#ffdd77" stroke-width="0.7" stroke-dasharray="4,4" opacity="0.3"/>
+<line x1="570"  y1="98" x2="570"  y2="1244" stroke="#5599ff" stroke-width="0.7" stroke-dasharray="4,4" opacity="0.3"/>
+<line x1="865"  y1="98" x2="865"  y2="1244" stroke="#ff88aa" stroke-width="0.7" stroke-dasharray="4,4" opacity="0.3"/>
+<line x1="1185" y1="98" x2="1185" y2="1244" stroke="#bb88ff" stroke-width="0.7" stroke-dasharray="4,4" opacity="0.3"/>
 
 <!-- ═══════════════════════════════════════════════════════════
      FLOW 1 — GET /api/voices
@@ -106,190 +106,198 @@
 <text x="295" y="231" text-anchor="middle" class="nt" fill="#449944">populate voice &lt;select&gt; options</text>
 
 <!-- ═══════════════════════════════════════════════════════════
-     FLOW 2 — POST /api/speak
+     FLOW 2 — POST /api/speak  (NDJSON streaming, chunked)
      ═══════════════════════════════════════════════════════════ -->
-<rect x="30" y="254" width="1240" height="297" rx="3" fill="#100800" stroke="#ff8844" stroke-width="0.8" opacity="0.7"/>
+<rect x="30" y="254" width="1240" height="380" rx="3" fill="#100800" stroke="#ff8844" stroke-width="0.8" opacity="0.7"/>
 <text x="48"  y="272" class="f2">POST /api/speak</text>
-<text x="192" y="272" class="fs">— Speaker panel TTS + synchronized scroll</text>
+<text x="192" y="272" class="fs">— Speaker panel TTS + synchronized scroll · streams NDJSON chunks</text>
 
-<!-- User → FE: click Play -->
+<!-- User → FE: click SPEAK -->
 <line x1="89" y1="291" x2="287" y2="291" stroke="#ffaa22" stroke-width="1.4" marker-end="url(#ma)"/>
-<text x="188" y="286" text-anchor="middle" class="ma">click Play</text>
+<text x="188" y="286" text-anchor="middle" class="ma">click SPEAK</text>
 
 <!-- FE → BE: POST -->
 <line x1="299" y1="312" x2="562" y2="312" stroke="#ff8844" stroke-width="1.4" marker-end="url(#mo)"/>
 <text x="430" y="307" text-anchor="middle" class="mo">POST /api/speak  {text, voice}</text>
 
-<!-- BE → EdgeTTS: stream -->
-<line x1="574" y1="332" x2="857" y2="332" stroke="#ff8844" stroke-width="1.4" marker-end="url(#mo)"/>
-<text x="716" y="327" text-anchor="middle" class="mo">Communicate(text, voice).stream()</text>
+<!-- outer loop: for each 3-paragraph chunk -->
+<rect x="245" y="325" width="685" height="155" rx="2" fill="#0c0500" stroke="#886622" stroke-width="0.7" stroke-dasharray="3,2"/>
+<text x="261" y="340" class="ll">loop  for each 3-paragraph chunk  (split_into_chunks)</text>
 
-<!-- loop box -->
-<rect x="650" y="342" width="265" height="60" rx="2" fill="#0c0500" stroke="#886622" stroke-width="0.7" stroke-dasharray="3,2"/>
-<text x="666" y="357" class="ll">loop stream chunks</text>
+<!-- BE → EdgeTTS: stream -->
+<line x1="574" y1="356" x2="857" y2="356" stroke="#ff8844" stroke-width="1.4" marker-end="url(#mo)"/>
+<text x="716" y="351" text-anchor="middle" class="mo">Communicate(chunk_text, voice).stream()</text>
+
+<!-- inner loop: stream events -->
+<rect x="538" y="367" width="382" height="50" rx="2" fill="#080400" stroke="#664411" stroke-width="0.7" stroke-dasharray="3,2"/>
+<text x="554" y="380" class="ll">stream events</text>
 
 <!-- EdgeTTS → BE: audio chunk -->
-<line x1="861" y1="366" x2="578" y2="366" stroke="#ff8844" stroke-width="1.1" marker-end="url(#mo)"/>
-<text x="716" y="361" text-anchor="middle" class="mo">audio chunk (bytes)</text>
+<line x1="861" y1="391" x2="578" y2="391" stroke="#ff8844" stroke-width="1.1" marker-end="url(#mo)"/>
+<text x="716" y="386" text-anchor="middle" class="mo">audio chunk (bytes)</text>
 
 <!-- EdgeTTS → BE: SentenceBoundary (dashed) -->
-<line x1="861" y1="384" x2="578" y2="384" stroke="#ff8844" stroke-width="1.1" stroke-dasharray="4,3" marker-end="url(#mo)"/>
-<text x="716" y="379" text-anchor="middle" class="mo">SentenceBoundary {word, offset_ms}</text>
+<line x1="861" y1="408" x2="578" y2="408" stroke="#ff8844" stroke-width="1.1" stroke-dasharray="4,3" marker-end="url(#mo)"/>
+<text x="716" y="403" text-anchor="middle" class="mo">SentenceBoundary {word, offset_ms}</text>
 
-<!-- BE → FE: response (dashed) -->
-<line x1="566" y1="416" x2="303" y2="416" stroke="#ff8844" stroke-width="1.1" stroke-dasharray="5,3" marker-end="url(#mo)"/>
-<text x="430" y="411" text-anchor="middle" class="mo">{audio_b64, boundaries[]}</text>
+<!-- BE → FE: NDJSON line (streaming, dashed) -->
+<line x1="566" y1="432" x2="303" y2="432" stroke="#ff8844" stroke-width="1.3" stroke-dasharray="5,3" marker-end="url(#mo)"/>
+<text x="430" y="427" text-anchor="middle" class="mo">NDJSON stream  {audio_b64, boundaries[], chunk, is_last}</text>
 
-<!-- note: blob + rAF -->
-<rect x="185" y="426" width="220" height="30" rx="2" fill="#0e0600" stroke="#663300" stroke-width="0.7"/>
-<text x="295" y="439" text-anchor="middle" class="nt">b64ToBlob → blob URL</text>
-<text x="295" y="451" text-anchor="middle" class="nt">new Audio(blob) · rAF scroll loop starts</text>
+<!-- note: play / queue -->
+<rect x="185" y="440" width="220" height="20" rx="2" fill="#0e0600" stroke="#663300" stroke-width="0.7"/>
+<text x="295" y="454" text-anchor="middle" class="nt">chunk 0: play immediately  ·  chunk 1+: queue</text>
+
+<!-- note: applyChunkTimings + rAF -->
+<rect x="155" y="492" width="285" height="30" rx="2" fill="#0e0600" stroke="#663300" stroke-width="0.7"/>
+<text x="298" y="505" text-anchor="middle" class="nt">on chunk start: applyChunkTimings(globalOffsetMs)</text>
+<text x="298" y="518" text-anchor="middle" class="nt">rAF: scrollTop via currentTime·1000 + globalOffsetMs</text>
 
 <!-- User → FE: speed slider (dashed, live) -->
-<line x1="89" y1="471" x2="287" y2="471" stroke="#ffaa22" stroke-width="1.1" stroke-dasharray="4,3" marker-end="url(#ma)"/>
-<text x="188" y="466" text-anchor="middle" class="ma">speed slider (live)</text>
+<line x1="89" y1="539" x2="287" y2="539" stroke="#ffaa22" stroke-width="1.1" stroke-dasharray="4,3" marker-end="url(#ma)"/>
+<text x="188" y="534" text-anchor="middle" class="ma">speed slider (live)</text>
 
 <!-- note: playbackRate -->
-<rect x="175" y="480" width="240" height="20" rx="2" fill="#0e0600" stroke="#663300" stroke-width="0.7"/>
-<text x="295" y="494" text-anchor="middle" class="nt">audio.playbackRate = speed  (no rAF restart)</text>
+<rect x="175" y="548" width="240" height="20" rx="2" fill="#0e0600" stroke="#663300" stroke-width="0.7"/>
+<text x="295" y="562" text-anchor="middle" class="nt">audio.playbackRate = speed  (no rAF restart)</text>
 
 <!-- User → FE: click Stop -->
-<line x1="89" y1="514" x2="287" y2="514" stroke="#ffaa22" stroke-width="1.4" marker-end="url(#ma)"/>
-<text x="188" y="509" text-anchor="middle" class="ma">click Stop</text>
+<line x1="89" y1="583" x2="287" y2="583" stroke="#ffaa22" stroke-width="1.4" marker-end="url(#ma)"/>
+<text x="188" y="578" text-anchor="middle" class="ma">click Stop</text>
 
 <!-- note: abort -->
-<rect x="175" y="524" width="240" height="20" rx="2" fill="#0e0600" stroke="#663300" stroke-width="0.7"/>
-<text x="295" y="538" text-anchor="middle" class="nt">abort() · cancelAnimationFrame() · revoke blob URL</text>
+<rect x="145" y="592" width="300" height="20" rx="2" fill="#0e0600" stroke="#663300" stroke-width="0.7"/>
+<text x="295" y="606" text-anchor="middle" class="nt">abort() · cancelAnimationFrame() · revoke all blob URLs</text>
 
 <!-- ═══════════════════════════════════════════════════════════
      FLOW 3 — WS /api/transcribe
      ═══════════════════════════════════════════════════════════ -->
-<rect x="30" y="563" width="1240" height="590" rx="3" fill="#010e12" stroke="#22ccff" stroke-width="0.8" opacity="0.7"/>
-<text x="48"  y="581" class="f3">WS /api/transcribe</text>
-<text x="218" y="581" class="fs">— Tutor panel pronunciation practice</text>
+<rect x="30" y="646" width="1240" height="590" rx="3" fill="#010e12" stroke="#22ccff" stroke-width="0.8" opacity="0.7"/>
+<text x="48"  y="664" class="f3">WS /api/transcribe</text>
+<text x="218" y="664" class="fs">— Tutor panel pronunciation practice</text>
 
 <!-- User → FE: Listen -->
-<line x1="89" y1="599" x2="287" y2="599" stroke="#ffaa22" stroke-width="1.4" marker-end="url(#ma)"/>
-<text x="188" y="594" text-anchor="middle" class="ma">click Listen</text>
+<line x1="89" y1="682" x2="287" y2="682" stroke="#ffaa22" stroke-width="1.4" marker-end="url(#ma)"/>
+<text x="188" y="677" text-anchor="middle" class="ma">click Listen</text>
 
 <!-- FE → BE: WS connect -->
-<line x1="299" y1="619" x2="562" y2="619" stroke="#22ccff" stroke-width="1.4" marker-end="url(#mc)"/>
-<text x="430" y="614" text-anchor="middle" class="mc">WS connect /api/transcribe</text>
+<line x1="299" y1="702" x2="562" y2="702" stroke="#22ccff" stroke-width="1.4" marker-end="url(#mc)"/>
+<text x="430" y="697" text-anchor="middle" class="mc">WS connect /api/transcribe</text>
 
 <!-- FE → BE: {start} -->
-<line x1="299" y1="639" x2="562" y2="639" stroke="#22ccff" stroke-width="1.4" marker-end="url(#mc)"/>
-<text x="430" y="634" text-anchor="middle" class="mc">{start, language, model}</text>
+<line x1="299" y1="722" x2="562" y2="722" stroke="#22ccff" stroke-width="1.4" marker-end="url(#mc)"/>
+<text x="430" y="717" text-anchor="middle" class="mc">{start, language, model}</text>
 
 <!-- BE → Whisper: load model -->
-<line x1="574" y1="659" x2="1177" y2="659" stroke="#bb88ff" stroke-width="1.4" marker-end="url(#mp)"/>
-<text x="876" y="654" text-anchor="middle" class="mp">get_whisper_model(name)  [cached]</text>
+<line x1="574" y1="742" x2="1177" y2="742" stroke="#bb88ff" stroke-width="1.4" marker-end="url(#mp)"/>
+<text x="876" y="737" text-anchor="middle" class="mp">get_whisper_model(name)  [cached]</text>
 
 <!-- Whisper → BE: model ready (dashed) -->
-<line x1="1181" y1="677" x2="578" y2="677" stroke="#bb88ff" stroke-width="1.1" stroke-dasharray="5,3" marker-end="url(#mp)"/>
-<text x="876" y="672" text-anchor="middle" class="mp">WhisperModel instance</text>
+<line x1="1181" y1="760" x2="578" y2="760" stroke="#bb88ff" stroke-width="1.1" stroke-dasharray="5,3" marker-end="url(#mp)"/>
+<text x="876" y="755" text-anchor="middle" class="mp">WhisperModel instance</text>
 
 <!-- BE → FE: {ready} (dashed) -->
-<line x1="566" y1="697" x2="303" y2="697" stroke="#22ccff" stroke-width="1.1" stroke-dasharray="5,3" marker-end="url(#mc)"/>
-<text x="430" y="692" text-anchor="middle" class="mc">{ready}</text>
+<line x1="566" y1="780" x2="303" y2="780" stroke="#22ccff" stroke-width="1.1" stroke-dasharray="5,3" marker-end="url(#mc)"/>
+<text x="430" y="775" text-anchor="middle" class="mc">{ready}</text>
 
 <!-- note: MediaRecorder -->
-<rect x="205" y="706" width="180" height="20" rx="2" fill="#010e12" stroke="#114433" stroke-width="0.7"/>
-<text x="295" y="720" text-anchor="middle" class="nt">getUserMedia → MediaRecorder starts</text>
+<rect x="205" y="789" width="180" height="20" rx="2" fill="#010e12" stroke="#114433" stroke-width="0.7"/>
+<text x="295" y="803" text-anchor="middle" class="nt">getUserMedia → MediaRecorder starts</text>
 
 <!-- loop box: 1s chunks -->
-<rect x="30" y="734" width="560" height="42" rx="2" fill="#000e10" stroke="#335544" stroke-width="0.7" stroke-dasharray="3,2"/>
-<text x="48" y="749" class="ll">loop  every ~1 s (MediaRecorder dataavailable)</text>
+<rect x="30" y="817" width="560" height="42" rx="2" fill="#000e10" stroke="#335544" stroke-width="0.7" stroke-dasharray="3,2"/>
+<text x="48" y="832" class="ll">loop  every ~1 s (MediaRecorder dataavailable)</text>
 
 <!-- FE → BE: binary chunk -->
-<line x1="299" y1="762" x2="562" y2="762" stroke="#22ccff" stroke-width="1.4" marker-end="url(#mc)"/>
-<text x="430" y="757" text-anchor="middle" class="mc">binary: audio/webm;codecs=opus</text>
+<line x1="299" y1="845" x2="562" y2="845" stroke="#22ccff" stroke-width="1.4" marker-end="url(#mc)"/>
+<text x="430" y="840" text-anchor="middle" class="mc">binary: audio/webm;codecs=opus</text>
 
 <!-- alt box: silence detected -->
-<rect x="30" y="785" width="1240" height="178" rx="2" fill="#0c0010" stroke="#664466" stroke-width="0.8" stroke-dasharray="3,2"/>
-<text x="48" y="800" class="al">alt  silence detected (300 ms)</text>
+<rect x="30" y="868" width="1240" height="178" rx="2" fill="#0c0010" stroke="#664466" stroke-width="0.8" stroke-dasharray="3,2"/>
+<text x="48" y="883" class="al">alt  silence detected (300 ms)</text>
 
 <!-- FE → BE: pause_detected -->
-<line x1="299" y1="816" x2="562" y2="816" stroke="#22ccff" stroke-width="1.4" marker-end="url(#mc)"/>
-<text x="430" y="811" text-anchor="middle" class="mc">{pause_detected}</text>
+<line x1="299" y1="899" x2="562" y2="899" stroke="#22ccff" stroke-width="1.4" marker-end="url(#mc)"/>
+<text x="430" y="894" text-anchor="middle" class="mc">{pause_detected}</text>
 
 <!-- BE → Whisper: ffmpeg decode -->
-<line x1="574" y1="835" x2="1177" y2="835" stroke="#bb88ff" stroke-width="1.4" marker-end="url(#mp)"/>
-<text x="876" y="830" text-anchor="middle" class="mp">ffmpeg: decode webm → 16 kHz f32le PCM</text>
+<line x1="574" y1="918" x2="1177" y2="918" stroke="#bb88ff" stroke-width="1.4" marker-end="url(#mp)"/>
+<text x="876" y="913" text-anchor="middle" class="mp">ffmpeg: decode webm → 16 kHz f32le PCM</text>
 
 <!-- Whisper → BE: PCM (dashed) -->
-<line x1="1181" y1="853" x2="578" y2="853" stroke="#bb88ff" stroke-width="1.1" stroke-dasharray="5,3" marker-end="url(#mp)"/>
-<text x="876" y="848" text-anchor="middle" class="mp">float32 PCM array</text>
+<line x1="1181" y1="936" x2="578" y2="936" stroke="#bb88ff" stroke-width="1.1" stroke-dasharray="5,3" marker-end="url(#mp)"/>
+<text x="876" y="931" text-anchor="middle" class="mp">float32 PCM array</text>
 
 <!-- BE → Whisper: transcribe -->
-<line x1="574" y1="871" x2="1177" y2="871" stroke="#bb88ff" stroke-width="1.4" marker-end="url(#mp)"/>
-<text x="876" y="866" text-anchor="middle" class="mp">transcribe(pcm, language, vad_filter=True)</text>
+<line x1="574" y1="954" x2="1177" y2="954" stroke="#bb88ff" stroke-width="1.4" marker-end="url(#mp)"/>
+<text x="876" y="949" text-anchor="middle" class="mp">transcribe(pcm, language, vad_filter=True)</text>
 
 <!-- Whisper → BE: partial text (dashed) -->
-<line x1="1181" y1="889" x2="578" y2="889" stroke="#bb88ff" stroke-width="1.1" stroke-dasharray="5,3" marker-end="url(#mp)"/>
-<text x="876" y="884" text-anchor="middle" class="mp">partial text</text>
+<line x1="1181" y1="972" x2="578" y2="972" stroke="#bb88ff" stroke-width="1.1" stroke-dasharray="5,3" marker-end="url(#mp)"/>
+<text x="876" y="967" text-anchor="middle" class="mp">partial text</text>
 
 <!-- BE → FE: transcript partial (dashed) -->
-<line x1="566" y1="907" x2="303" y2="907" stroke="#22ccff" stroke-width="1.1" stroke-dasharray="5,3" marker-end="url(#mc)"/>
-<text x="430" y="902" text-anchor="middle" class="mc">{transcript, is_final: false}</text>
+<line x1="566" y1="990" x2="303" y2="990" stroke="#22ccff" stroke-width="1.1" stroke-dasharray="5,3" marker-end="url(#mc)"/>
+<text x="430" y="985" text-anchor="middle" class="mc">{transcript, is_final: false}</text>
 
 <!-- note: partial diff -->
-<rect x="205" y="916" width="180" height="20" rx="2" fill="#010e12" stroke="#114433" stroke-width="0.7"/>
-<text x="295" y="930" text-anchor="middle" class="nt">show partial diff overlay</text>
+<rect x="205" y="999" width="180" height="20" rx="2" fill="#010e12" stroke="#114433" stroke-width="0.7"/>
+<text x="295" y="1013" text-anchor="middle" class="nt">show partial diff overlay</text>
 
 <!-- User → FE: click Stop -->
-<line x1="89" y1="982" x2="287" y2="982" stroke="#ffaa22" stroke-width="1.4" marker-end="url(#ma)"/>
-<text x="188" y="977" text-anchor="middle" class="ma">click Stop</text>
+<line x1="89" y1="1065" x2="287" y2="1065" stroke="#ffaa22" stroke-width="1.4" marker-end="url(#ma)"/>
+<text x="188" y="1060" text-anchor="middle" class="ma">click Stop</text>
 
 <!-- FE → BE: {stop} -->
-<line x1="299" y1="1002" x2="562" y2="1002" stroke="#22ccff" stroke-width="1.4" marker-end="url(#mc)"/>
-<text x="430" y="997" text-anchor="middle" class="mc">{stop}</text>
+<line x1="299" y1="1085" x2="562" y2="1085" stroke="#22ccff" stroke-width="1.4" marker-end="url(#mc)"/>
+<text x="430" y="1080" text-anchor="middle" class="mc">{stop}</text>
 
 <!-- note: cancel partial -->
-<rect x="483" y="1011" width="175" height="20" rx="2" fill="#010e12" stroke="#114433" stroke-width="0.7"/>
-<text x="570" y="1025" text-anchor="middle" class="nt">cancel in-flight partial task</text>
+<rect x="483" y="1094" width="175" height="20" rx="2" fill="#010e12" stroke="#114433" stroke-width="0.7"/>
+<text x="570" y="1108" text-anchor="middle" class="nt">cancel in-flight partial task</text>
 
 <!-- BE → Whisper: ffmpeg decode full buffer -->
-<line x1="574" y1="1044" x2="1177" y2="1044" stroke="#bb88ff" stroke-width="1.4" marker-end="url(#mp)"/>
-<text x="876" y="1039" text-anchor="middle" class="mp">ffmpeg: decode full audio_chunks buffer → PCM</text>
+<line x1="574" y1="1127" x2="1177" y2="1127" stroke="#bb88ff" stroke-width="1.4" marker-end="url(#mp)"/>
+<text x="876" y="1122" text-anchor="middle" class="mp">ffmpeg: decode full audio_chunks buffer → PCM</text>
 
 <!-- Whisper → BE: PCM (dashed) -->
-<line x1="1181" y1="1062" x2="578" y2="1062" stroke="#bb88ff" stroke-width="1.1" stroke-dasharray="5,3" marker-end="url(#mp)"/>
-<text x="876" y="1057" text-anchor="middle" class="mp">float32 PCM array</text>
+<line x1="1181" y1="1145" x2="578" y2="1145" stroke="#bb88ff" stroke-width="1.1" stroke-dasharray="5,3" marker-end="url(#mp)"/>
+<text x="876" y="1140" text-anchor="middle" class="mp">float32 PCM array</text>
 
 <!-- BE → Whisper: transcribe final -->
-<line x1="574" y1="1080" x2="1177" y2="1080" stroke="#bb88ff" stroke-width="1.4" marker-end="url(#mp)"/>
-<text x="876" y="1075" text-anchor="middle" class="mp">transcribe(pcm, language, vad_filter=True)  [final]</text>
+<line x1="574" y1="1163" x2="1177" y2="1163" stroke="#bb88ff" stroke-width="1.4" marker-end="url(#mp)"/>
+<text x="876" y="1158" text-anchor="middle" class="mp">transcribe(pcm, language, vad_filter=True)  [final]</text>
 
 <!-- Whisper → BE: final text (dashed) -->
-<line x1="1181" y1="1098" x2="578" y2="1098" stroke="#bb88ff" stroke-width="1.1" stroke-dasharray="5,3" marker-end="url(#mp)"/>
-<text x="876" y="1093" text-anchor="middle" class="mp">final text</text>
+<line x1="1181" y1="1181" x2="578" y2="1181" stroke="#bb88ff" stroke-width="1.1" stroke-dasharray="5,3" marker-end="url(#mp)"/>
+<text x="876" y="1176" text-anchor="middle" class="mp">final text</text>
 
 <!-- BE → FE: transcript final (dashed) -->
-<line x1="566" y1="1116" x2="303" y2="1116" stroke="#22ccff" stroke-width="1.1" stroke-dasharray="5,3" marker-end="url(#mc)"/>
-<text x="430" y="1111" text-anchor="middle" class="mc">{transcript, is_final: true}</text>
+<line x1="566" y1="1199" x2="303" y2="1199" stroke="#22ccff" stroke-width="1.1" stroke-dasharray="5,3" marker-end="url(#mc)"/>
+<text x="430" y="1194" text-anchor="middle" class="mc">{transcript, is_final: true}</text>
 
 <!-- note: diffWords + render -->
-<rect x="175" y="1126" width="240" height="20" rx="2" fill="#010e12" stroke="#114433" stroke-width="0.7"/>
-<text x="295" y="1140" text-anchor="middle" class="nt">diffWords(ref, transcript) → render diff  (match / extra / missing)</text>
+<rect x="175" y="1209" width="240" height="20" rx="2" fill="#010e12" stroke="#114433" stroke-width="0.7"/>
+<text x="295" y="1223" text-anchor="middle" class="nt">diffWords(ref, transcript) → render diff  (match / extra / missing)</text>
 
 <!-- note: WS closes -->
-<rect x="483" y="1126" width="175" height="20" rx="2" fill="#010e12" stroke="#114433" stroke-width="0.7"/>
-<text x="570" y="1140" text-anchor="middle" class="nt">WebSocket closed</text>
+<rect x="483" y="1209" width="175" height="20" rx="2" fill="#010e12" stroke="#114433" stroke-width="0.7"/>
+<text x="570" y="1223" text-anchor="middle" class="nt">WebSocket closed</text>
 
 <!-- ═══ LEGEND ═══ -->
-<line x1="30" y1="1163" x2="1270" y2="1163" stroke="#333333" stroke-width="0.5"/>
-<line x1="40"  y1="1178" x2="72"  y2="1178" stroke="#888888" stroke-width="1.3" marker-end="url(#mg)"/>
-<text x="80"  y="1182" class="fs">request</text>
-<line x1="155" y1="1178" x2="187" y2="1178" stroke="#888888" stroke-width="1.1" stroke-dasharray="5,3" marker-end="url(#mg)"/>
-<text x="195" y="1182" class="fs">response</text>
-<line x1="290" y1="1178" x2="322" y2="1178" stroke="#ffaa22" stroke-width="1.3" marker-end="url(#ma)"/>
-<text x="330" y="1182" class="fs" fill="#ffaa22">user action</text>
-<line x1="435" y1="1178" x2="467" y2="1178" stroke="#44cc88" stroke-width="1.3" marker-end="url(#mg)"/>
-<text x="475" y="1182" class="fs" fill="#44cc88">GET /api/voices</text>
-<line x1="615" y1="1178" x2="647" y2="1178" stroke="#ff8844" stroke-width="1.3" marker-end="url(#mo)"/>
-<text x="655" y="1182" class="fs" fill="#ff8844">POST /api/speak</text>
-<line x1="795" y1="1178" x2="827" y2="1178" stroke="#22ccff" stroke-width="1.3" marker-end="url(#mc)"/>
-<text x="835" y="1182" class="fs" fill="#22ccff">WS /api/transcribe</text>
-<line x1="1005" y1="1178" x2="1037" y2="1178" stroke="#bb88ff" stroke-width="1.3" marker-end="url(#mp)"/>
-<text x="1045" y="1182" class="fs" fill="#bb88ff">internal (ffmpeg · whisper)</text>
+<line x1="30" y1="1246" x2="1270" y2="1246" stroke="#333333" stroke-width="0.5"/>
+<line x1="40"  y1="1261" x2="72"  y2="1261" stroke="#888888" stroke-width="1.3" marker-end="url(#mg)"/>
+<text x="80"  y="1265" class="fs">request</text>
+<line x1="155" y1="1261" x2="187" y2="1261" stroke="#888888" stroke-width="1.1" stroke-dasharray="5,3" marker-end="url(#mg)"/>
+<text x="195" y="1265" class="fs">response / stream</text>
+<line x1="310" y1="1261" x2="342" y2="1261" stroke="#ffaa22" stroke-width="1.3" marker-end="url(#ma)"/>
+<text x="350" y="1265" class="fs" fill="#ffaa22">user action</text>
+<line x1="455" y1="1261" x2="487" y2="1261" stroke="#44cc88" stroke-width="1.3" marker-end="url(#mg)"/>
+<text x="495" y="1265" class="fs" fill="#44cc88">GET /api/voices</text>
+<line x1="635" y1="1261" x2="667" y2="1261" stroke="#ff8844" stroke-width="1.3" marker-end="url(#mo)"/>
+<text x="675" y="1265" class="fs" fill="#ff8844">POST /api/speak  (NDJSON)</text>
+<line x1="845" y1="1261" x2="877" y2="1261" stroke="#22ccff" stroke-width="1.3" marker-end="url(#mc)"/>
+<text x="885" y="1265" class="fs" fill="#22ccff">WS /api/transcribe</text>
+<line x1="1045" y1="1261" x2="1077" y2="1261" stroke="#bb88ff" stroke-width="1.3" marker-end="url(#mp)"/>
+<text x="1085" y="1265" class="fs" fill="#bb88ff">internal (ffmpeg · whisper)</text>
 </svg>

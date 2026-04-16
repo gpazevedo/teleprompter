@@ -34,6 +34,7 @@ export default function Teleprompter() {
   const [voices, setVoices]       = useState([]);
   const [voice, setVoice]         = useState(DEFAULT_VOICE);
   const [ttsActive, setTtsActive] = useState(false);
+  const [ttsPlaying, setTtsPlaying] = useState(false);
 
   // Refs — scroll animation
   const scrollRef   = useRef(null);
@@ -50,7 +51,8 @@ export default function Teleprompter() {
   const audioRef     = useRef(null);
   const ttsRafRef    = useRef(null); // rAF id for scroll sync loop
   const paraElemsRef = useRef([]);   // DOM element per speech item
-  const abortRef      = useRef(null); // AbortController.abort fn for in-flight fetch
+  const abortRef     = useRef(null); // AbortController.abort fn for in-flight fetch
+  const ttsQueueRef  = useRef([]);   // pending { audio, blobUrl, chunkIdx, boundaries }
 
   // ── Fetch voices once ────────────────────────────────────────────────────
 
@@ -92,14 +94,14 @@ export default function Teleprompter() {
   // ── Progress tracking ────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (playing || ttsActive) {
+    if (playing || ttsPlaying) {
       intervalRef.current = setInterval(() => setElapsed(e => e + 1), 1000);
     } else {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
     return () => { clearInterval(intervalRef.current); intervalRef.current = null; };
-  }, [playing, ttsActive]);
+  }, [playing, ttsPlaying]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -161,6 +163,9 @@ export default function Teleprompter() {
       if (audioRef.current._blobUrl) URL.revokeObjectURL(audioRef.current._blobUrl);
       audioRef.current = null;
     }
+    for (const { blobUrl } of ttsQueueRef.current) URL.revokeObjectURL(blobUrl);
+    ttsQueueRef.current = [];
+    setTtsPlaying(false);
     setTtsActive(false);
   }, []);
 
@@ -200,10 +205,118 @@ export default function Teleprompter() {
     }
 
     setTtsActive(true);
-    setPlaying(false); // TTS drives scroll; pause visual RAF loop
+    setPlaying(false);
 
     const ctrl = new AbortController();
     abortRef.current = () => ctrl.abort();
+
+    // Split speakableItems into same CHUNK_SIZE groups as the backend
+    const CHUNK_SIZE = 3;
+    const itemChunks = [];
+    for (let i = 0; i < speakableItems.length; i += CHUNK_SIZE) {
+      itemChunks.push(speakableItems.slice(i, i + CHUNK_SIZE));
+    }
+
+    const scroller = scrollRef.current;
+    // Merged scroll timings across all chunks; startMs is global (chunk-offset adjusted)
+    const mergedTimings = [];
+    let globalOffsetMs = 0; // accumulated duration of completed chunks
+    let streamDone = false;
+
+    // rAF scroll sync — uses globalOffsetMs + audio.currentTime for global position
+    const syncScroll = () => {
+      const el = scrollRef.current;
+      const audio = audioRef.current;
+      if (!el || !audio) return;
+
+      if (audio.playbackRate !== speedRef.current) audio.playbackRate = speedRef.current;
+      const currentMs = audio.currentTime * 1000 + globalOffsetMs;
+
+      let seg = 0;
+      for (let i = 1; i < mergedTimings.length; i++) {
+        if (currentMs >= mergedTimings[i].startMs) seg = i;
+        else break;
+      }
+
+      const curr = mergedTimings[seg];
+      const next  = mergedTimings[seg + 1];
+      const currTop = curr?.targetScrollTop;
+
+      if (currTop != null) {
+        if (next?.targetScrollTop != null) {
+          const t = Math.max(0, Math.min(1,
+            (currentMs - curr.startMs) / (next.startMs - curr.startMs)
+          ));
+          el.scrollTop = currTop + (next.targetScrollTop - currTop) * t;
+        } else {
+          el.scrollTop = currTop;
+        }
+      }
+
+      ttsRafRef.current = requestAnimationFrame(syncScroll);
+    };
+
+    // Called when a chunk starts playing — builds its timings now that globalOffsetMs is known
+    const applyChunkTimings = (chunkIdx, boundaries) => {
+      const chunkItems = itemChunks[chunkIdx] || [];
+      if (!chunkItems.length || !boundaries.length || !scroller) return;
+      const chunkTimings = buildItemTimings(chunkItems, boundaries);
+      const scrollerRect = scroller.getBoundingClientRect();
+      const vh = scroller.clientHeight;
+      for (const { itemIdx, startMs } of chunkTimings) {
+        const item = chunkItems[itemIdx];
+        if (!item) continue;
+        const elem = paraElemsRef.current[item.absIdx];
+        if (!elem) continue;
+        const elemRect = elem.getBoundingClientRect();
+        mergedTimings.push({
+          startMs: startMs + globalOffsetMs,
+          targetScrollTop: elemRect.top - scrollerRect.top + scroller.scrollTop - vh * 0.38,
+        });
+      }
+    };
+
+    const playNext = async () => {
+      if (ctrl.signal.aborted || ttsQueueRef.current.length === 0) {
+        if (streamDone) {
+          if (ttsRafRef.current) { cancelAnimationFrame(ttsRafRef.current); ttsRafRef.current = null; }
+          setTtsPlaying(false);
+          setTtsActive(false);
+        }
+        return;
+      }
+
+      const { audio, blobUrl, chunkIdx, boundaries } = ttsQueueRef.current.shift();
+      audioRef.current = audio;
+      audio.playbackRate = speedRef.current;
+      if (selectedOutput && audio.setSinkId) await audio.setSinkId(selectedOutput);
+      if (ctrl.signal.aborted) { URL.revokeObjectURL(blobUrl); return; }
+
+      // Build timings for this chunk now that we know the accumulated offset
+      if (!isSelection) applyChunkTimings(chunkIdx, boundaries);
+
+      // Start scroll sync once we have timings
+      if (mergedTimings.length && !ttsRafRef.current) {
+        ttsRafRef.current = requestAnimationFrame(syncScroll);
+      }
+
+      audio.addEventListener("ended", () => {
+        globalOffsetMs += audio.duration * 1000;
+        URL.revokeObjectURL(blobUrl);
+        if (audioRef.current === audio) audioRef.current = null;
+        if (ttsQueueRef.current.length > 0) {
+          playNext();
+        } else if (streamDone) {
+          if (ttsRafRef.current) { cancelAnimationFrame(ttsRafRef.current); ttsRafRef.current = null; }
+          setTtsPlaying(false);
+          setTtsActive(false);
+        }
+        // else: more chunks still arriving — they will call playNext when queued
+      }, { once: true });
+
+      setTtsPlaying(true);
+      audio.play();
+    };
 
     try {
       const res = await fetch("/api/speak", {
@@ -213,88 +326,43 @@ export default function Teleprompter() {
         signal: ctrl.signal,
       });
 
-      // Bail out if stopTts() was called while fetch was in-flight
       if (ctrl.signal.aborted) return;
 
-      const { audio_b64, boundaries } = await res.json();
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
 
-      if (ctrl.signal.aborted) return;
-
-      const blobUrl = b64ToBlob(audio_b64);
-      const audio = new Audio(blobUrl);
-      audio._blobUrl = blobUrl;
-      if (selectedOutput && audio.setSinkId) {
-        await audio.setSinkId(selectedOutput);
-      }
-      audio.playbackRate = speedRef.current;
-      audioRef.current = audio;
-
-      audio.addEventListener("ended", () => stopTts(), { once: true });
-
-      // Build flat timings array: [{absIdx, startMs}] for rAF interpolation
-      const scrollTimings = (!isSelection && speakableItems.length && boundaries.length)
-        ? buildItemTimings(speakableItems, boundaries).map(({ itemIdx, startMs }) => ({
-            absIdx: speakableItems[itemIdx]?.absIdx ?? startIdx + itemIdx,
-            startMs,
-          }))
-        : [];
-
-      // Pre-compute targetScrollTop for each timing using getBoundingClientRect,
-      // which is reliable regardless of offsetParent chain.
-      const scroller = scrollRef.current;
-      if (scroller && scrollTimings.length) {
-        const scrollerRect = scroller.getBoundingClientRect();
-        const vh = scroller.clientHeight;
-        for (const timing of scrollTimings) {
-          const elem = paraElemsRef.current[timing.absIdx];
-          if (elem) {
-            const elemRect = elem.getBoundingClientRect();
-            timing.targetScrollTop = elemRect.top - scrollerRect.top + scroller.scrollTop - vh * 0.38;
-          }
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop();
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          const { audio_b64, boundaries, chunk: chunkIdx } = JSON.parse(line);
+          const blobUrl = b64ToBlob(audio_b64);
+          const audio = new Audio(blobUrl);
+          audio._blobUrl = blobUrl;
+          ttsQueueRef.current.push({ audio, blobUrl, chunkIdx, boundaries });
+          // Start playing as soon as the first chunk arrives
+          if (!audioRef.current && ttsQueueRef.current.length === 1) playNext();
         }
-
       }
 
-      // rAF loop: interpolate scrollTop between pre-computed positions using audio.currentTime
-      if (scrollTimings.length) {
-        const syncScroll = () => {
-          const el = scrollRef.current;
-          const audio = audioRef.current;
-          if (!el || !audio) return;
-
-          if (audio.playbackRate !== speedRef.current) audio.playbackRate = speedRef.current;
-          const currentMs = audio.currentTime * 1000;
-
-          // Find which segment we're in
-          let seg = 0;
-          for (let i = 1; i < scrollTimings.length; i++) {
-            if (currentMs >= scrollTimings[i].startMs) seg = i;
-            else break;
-          }
-
-          const curr = scrollTimings[seg];
-          const next  = scrollTimings[seg + 1];
-          const currTop = curr.targetScrollTop;
-
-          if (currTop == null) { ttsRafRef.current = requestAnimationFrame(syncScroll); return; }
-
-          if (next?.targetScrollTop != null) {
-            const t = Math.max(0, Math.min(1,
-              (currentMs - curr.startMs) / (next.startMs - curr.startMs)
-            ));
-            el.scrollTop = currTop + (next.targetScrollTop - currTop) * t;
-          } else {
-            el.scrollTop = currTop;
-          }
-
-          ttsRafRef.current = requestAnimationFrame(syncScroll);
-        };
-        ttsRafRef.current = requestAnimationFrame(syncScroll);
+      streamDone = true;
+      // Stream finished — if nothing is playing and queue is empty, we're done
+      if (!audioRef.current && ttsQueueRef.current.length === 0) {
+        if (ttsRafRef.current) { cancelAnimationFrame(ttsRafRef.current); ttsRafRef.current = null; }
+        setTtsPlaying(false);
+        setTtsActive(false);
       }
-
-      audio.play();
     } catch (err) {
-      if (err.name !== "AbortError") setTtsActive(false);
+      if (err.name !== "AbortError") {
+        if (ttsRafRef.current) { cancelAnimationFrame(ttsRafRef.current); ttsRafRef.current = null; }
+        setTtsPlaying(false);
+        setTtsActive(false);
+      }
     } finally {
       abortRef.current = null;
     }

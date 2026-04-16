@@ -63,9 +63,10 @@ export default function Tutor() {
       setSpeech(items);
       setFileName(file.name);
       const plainText = items
-        .filter(i => i.type === "line" || i.type === "bold")
-        .map(i => i.text)
-        .join("\n");
+        .filter(i => i.type === "line" || i.type === "bold" || i.type === "break")
+        .map(i => i.type === "break" ? "" : i.text)
+        .join("\n\n")
+        .replace(/(\n\n){2,}/g, "\n\n"); // collapse multiple blanks from adjacent breaks
       setUserText(plainText);
     };
     reader.readAsText(file);
@@ -262,7 +263,7 @@ export default function Tutor() {
       if (i.type === "bold") return `**${i.text}**`;
       if (i.type === "break") return "---";
       return i.text;
-    }).join("\n"),
+    }).join("\n\n"),
     [speech],
   );
 
@@ -494,7 +495,7 @@ export default function Tutor() {
           border: ttsPlaying ? "1px solid rgba(30,180,110,0.3)" : "1px solid rgba(255,255,255,0.08)",
           padding: "7px 20px", fontSize: 13, fontWeight: 700, letterSpacing: 1,
         }}>
-          {ttsPlaying ? "◼ STOP" : "▶ PLAY PRONUNCIATION"}
+          {ttsPlaying ? "◼ STOP" : "◉ SYSTEM SPEAK"}
         </button>
 
         <div style={{ width: 1, height: 24, background: C.divider }} />

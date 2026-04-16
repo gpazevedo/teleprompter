@@ -106,42 +106,81 @@ export function b64ToBlob(audio_b64, mimeType = "audio/mpeg") {
 }
 
 /**
- * Play TTS audio for given text via /api/speak endpoint.
- * Returns { abort(), audio } — abort stops playback, audio is the HTMLAudioElement
- * (null until fetch resolves). Call audio.setSinkId(id) to hot-swap output device.
+ * Play TTS audio for given text via /api/speak endpoint (NDJSON stream).
+ * Returns { abort(), audio } — abort stops playback, audio is the live HTMLAudioElement.
+ * Chunks are played sequentially as they arrive so playback starts sooner.
  */
 export function playTts(text, voice, onEnd, outputDeviceId) {
   const ctrl = new AbortController();
-  let blobUrl = null;
   const handle = { abort: null, audio: null };
-
-  fetch("/api/speak", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text, voice }),
-    signal: ctrl.signal,
-  })
-    .then(r => r.json())
-    .then(async ({ audio_b64 }) => {
-      blobUrl = b64ToBlob(audio_b64);
-      const audio = new Audio(blobUrl);
-      handle.audio = audio;
-      if (outputDeviceId && audio.setSinkId) {
-        await audio.setSinkId(outputDeviceId);
-      }
-      audio.addEventListener("ended", () => { cleanup(); onEnd?.(); }, { once: true });
-      audio.play();
-    })
-    .catch((err) => {
-      if (err.name !== "AbortError") onEnd?.();
-    });
+  const blobUrls = [];
+  let aborted = false;
 
   const cleanup = () => {
     if (handle.audio) { handle.audio.pause(); handle.audio = null; }
-    if (blobUrl) { URL.revokeObjectURL(blobUrl); blobUrl = null; }
+    blobUrls.forEach(u => URL.revokeObjectURL(u));
+    blobUrls.length = 0;
   };
 
-  handle.abort = () => { ctrl.abort(); cleanup(); onEnd?.(); };
+  handle.abort = () => { aborted = true; ctrl.abort(); cleanup(); onEnd?.(); };
+
+  (async () => {
+    try {
+      const res = await fetch("/api/speak", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, voice }),
+        signal: ctrl.signal,
+      });
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      const queue = [];
+      let streamDone = false;
+
+      const playNext = async () => {
+        if (aborted || queue.length === 0) {
+          if (streamDone) { cleanup(); onEnd?.(); }
+          return;
+        }
+        const { audio, blobUrl } = queue.shift();
+        handle.audio = audio;
+        if (outputDeviceId && audio.setSinkId) await audio.setSinkId(outputDeviceId);
+        if (aborted) { URL.revokeObjectURL(blobUrl); return; }
+        audio.addEventListener("ended", () => {
+          URL.revokeObjectURL(blobUrl);
+          if (queue.length > 0) playNext();
+          else if (streamDone) { cleanup(); onEnd?.(); }
+        }, { once: true });
+        audio.play();
+      };
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop();
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          const { audio_b64 } = JSON.parse(line);
+          const blobUrl = b64ToBlob(audio_b64);
+          blobUrls.push(blobUrl);
+          const audio = new Audio(blobUrl);
+          const wasEmpty = queue.length === 0 && !handle.audio;
+          queue.push({ audio, blobUrl });
+          if (wasEmpty) playNext();
+        }
+      }
+
+      streamDone = true;
+      if (!handle.audio && queue.length === 0) { cleanup(); onEnd?.(); }
+    } catch (err) {
+      if (err.name !== "AbortError") { cleanup(); onEnd?.(); }
+    }
+  })();
+
   return handle;
 }
 
