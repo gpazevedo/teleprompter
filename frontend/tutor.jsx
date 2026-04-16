@@ -41,10 +41,14 @@ export default function Tutor() {
   const [whisperModel, setWhisperModel] = useState("small");
   const [listenState, setListenState]   = useState("idle"); // idle | starting | listening | processing | finished
   const [ttsPlaying, setTtsPlaying]     = useState(false);
-  const [fontSize, setFontSize]         = useState(14);
+  const [fontSize, setFontSize]         = useState(18);
+  const [leftPct, setLeftPct]           = useState(58); // vertical split %
+  const [topPct, setTopPct]             = useState(50); // horizontal split within right %
 
   const { audioInputs, audioOutputs, selectedMic, setSelectedMic, selectedOutput, setSelectedOutput } = useAudioDevices();
 
+  const mainRef = useRef(null);   // ref to the main two-column container
+  const rightRef = useRef(null);  // ref to the right column container
   const wsRef = useRef(null);
   const recorderRef = useRef(null);
   const streamRef = useRef(null);
@@ -267,6 +271,44 @@ export default function Tutor() {
     [speech],
   );
 
+  // Drag handlers for vertical splitter (left/right)
+  const startVDrag = useCallback((e) => {
+    e.preventDefault();
+    const container = mainRef.current;
+    if (!container) return;
+    const onMove = (ev) => {
+      const rect = container.getBoundingClientRect();
+      const x = (ev.clientX ?? ev.touches?.[0]?.clientX) - rect.left;
+      const pct = Math.min(80, Math.max(20, (x / rect.width) * 100));
+      setLeftPct(pct);
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }, []);
+
+  // Drag handlers for horizontal splitter (top/bottom within right)
+  const startHDrag = useCallback((e) => {
+    e.preventDefault();
+    const container = rightRef.current;
+    if (!container) return;
+    const onMove = (ev) => {
+      const rect = container.getBoundingClientRect();
+      const y = (ev.clientY ?? ev.touches?.[0]?.clientY) - rect.top;
+      const pct = Math.min(80, Math.max(20, (y / rect.height) * 100));
+      setTopPct(pct);
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }, []);
+
   // Show file picker if no speech loaded
   if (!speech.length) {
     return <FilePicker onFile={handleFile} title="Load practice text" />;
@@ -328,14 +370,13 @@ export default function Tutor() {
       </div>
 
       {/* Main content: two-column layout */}
-      <div style={{
+      <div ref={mainRef} style={{
         flex: 1, display: "flex", overflow: "hidden",
         zIndex: 3, position: "relative",
       }}>
-        {/* Left: Full text from file (~60%) */}
+        {/* Left: Full text from file */}
         <div style={{
-          flex: "0 0 58%", overflow: "auto", padding: "16px 20px",
-          borderRight: `1px solid ${C.divider}`,
+          flex: `0 0 ${leftPct}%`, overflow: "auto", padding: "16px 20px",
           scrollbarWidth: "thin",
           scrollbarColor: `${C.amberDim} transparent`,
         }}>
@@ -355,15 +396,26 @@ export default function Tutor() {
           </pre>
         </div>
 
+        {/* Vertical drag handle */}
+        <div
+          onMouseDown={startVDrag}
+          style={{
+            width: 5, flexShrink: 0, cursor: "col-resize",
+            background: C.divider,
+            transition: "background 0.15s",
+          }}
+          onMouseEnter={e => e.currentTarget.style.background = C.amber}
+          onMouseLeave={e => e.currentTarget.style.background = C.divider}
+        />
+
         {/* Right: user text + recognized text */}
-        <div style={{
+        <div ref={rightRef} style={{
           flex: 1, display: "flex", flexDirection: "column",
           overflow: "hidden",
         }}>
           {/* User's editable text */}
           <div style={{
-            flex: 1, display: "flex", flexDirection: "column",
-            borderBottom: `1px solid ${C.divider}`,
+            flex: `0 0 ${topPct}%`, display: "flex", flexDirection: "column",
             overflow: "hidden",
           }}>
             <div style={{
@@ -388,6 +440,18 @@ export default function Tutor() {
               placeholder="Type or paste text to practice..."
             />
           </div>
+
+          {/* Horizontal drag handle */}
+          <div
+            onMouseDown={startHDrag}
+            style={{
+              height: 5, flexShrink: 0, cursor: "row-resize",
+              background: C.divider,
+              transition: "background 0.15s",
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = C.amber}
+            onMouseLeave={e => e.currentTarget.style.background = C.divider}
+          />
 
           {/* Recognized text (read-only) */}
           <div style={{
