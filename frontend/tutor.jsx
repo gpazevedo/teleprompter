@@ -195,15 +195,30 @@ export default function Tutor() {
   }, [language, whisperModel, startLevelMeter, cleanup, selectedMic]);
 
   const stopListening = useCallback(() => {
-    cleanup(); // stops recorder, stream, level meter
-
     const ws = wsRef.current;
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: "stop" }));
-      // Don't close WS here — wait for transcript response
+    const recorder = recorderRef.current;
+
+    // Stop level meter and stream immediately
+    stopLevelMeter();
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    streamRef.current = null;
+    recorderRef.current = null;
+
+    // Send "stop" only after recorder flushes its last chunk via onstop,
+    // ensuring the backend receives all audio before it starts final transcription.
+    const sendStop = () => {
+      if (ws && ws.readyState === WebSocket.OPEN)
+        ws.send(JSON.stringify({ type: "stop" }));
+    };
+    if (recorder && recorder.state === "recording") {
+      recorder.onstop = sendStop;
+      recorder.stop();
+    } else {
+      sendStop();
     }
+
     setListenState("processing");
-  }, [cleanup]);
+  }, [stopLevelMeter]);
 
   // Hot-swap mic when selection changes during listening
   useEffect(() => {
