@@ -148,13 +148,27 @@ export default function FreeSpeech() {
   }, [language, whisperModel, startLevelMeter, cleanup, selectedMic]);
 
   const stopListening = useCallback(() => {
-    cleanup();
     const ws = wsRef.current;
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: "stop" }));
+    const recorder = recorderRef.current;
+
+    stopLevelMeter();
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    streamRef.current = null;
+    recorderRef.current = null;
+
+    const sendStop = () => {
+      if (ws && ws.readyState === WebSocket.OPEN)
+        ws.send(JSON.stringify({ type: "stop" }));
+    };
+    if (recorder && recorder.state === "recording") {
+      recorder.onstop = sendStop;
+      recorder.stop();
+    } else {
+      sendStop();
     }
+
     setListenState("processing");
-  }, [cleanup]);
+  }, [stopLevelMeter]);
 
   // Scroll to bottom of textarea when transcript grows
   useEffect(() => {

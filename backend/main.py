@@ -47,10 +47,9 @@ def decode_webm_to_pcm(audio_bytes: bytes) -> np.ndarray:
     return np.frombuffer(proc.stdout, dtype=np.float32)
 
 
-def transcribe_audio(model: WhisperModel, audio_bytes: bytes, language: str) -> str:
-    """Decode and transcribe audio bytes, return text."""
-    pcm = decode_webm_to_pcm(audio_bytes)
-    if len(pcm) < 1600:  # less than 0.1s
+def transcribe_pcm(model: WhisperModel, pcm: np.ndarray, language: str) -> str:
+    """Transcribe float32 16kHz PCM, return text."""
+    if len(pcm) < 1600:  # < 0.1s at 16kHz
         return ""
     segments, _ = model.transcribe(
         pcm,
@@ -59,6 +58,11 @@ def transcribe_audio(model: WhisperModel, audio_bytes: bytes, language: str) -> 
         vad_parameters={"min_silence_duration_ms": 300},
     )
     return " ".join(s.text.strip() for s in segments)
+
+
+def transcribe_audio(model: WhisperModel, audio_bytes: bytes, language: str) -> str:
+    """Decode webm/opus bytes to PCM and transcribe."""
+    return transcribe_pcm(model, decode_webm_to_pcm(audio_bytes), language)
 
 
 class SpeakRequest(BaseModel):
@@ -122,27 +126,43 @@ async def transcribe_ws(ws: WebSocket):
     language = "en"
     closed = False
     partial_task: asyncio.Task | None = None
+    last_partial_pcm_len: int = 0   # sample count at time of last completed partial
+    last_partial_text: str = ""     # text produced by last completed partial
 
     async def do_transcribe(is_final: bool):
+        nonlocal last_partial_pcm_len, last_partial_text
         if closed:
             return
         size = audio_chunks.tell()
         if size == 0 or model is None:
+            if is_final and last_partial_text:
+                await ws.send_json({"type": "transcript", "text": last_partial_text, "is_final": True})
             return
+
+        # Decode full buffer once — fast (ffmpeg runs at >> real-time)
         audio_chunks.seek(0)
         audio_data = audio_chunks.read()
         audio_chunks.seek(0, 2)
-        kind = "final" if is_final else "partial"
-        log.info("[%s] Transcribing %d bytes...", kind, len(audio_data))
-        text = await asyncio.to_thread(
-            transcribe_audio, model, audio_data, language
-        )
+        pcm = await asyncio.to_thread(decode_webm_to_pcm, audio_data)
+
+        if is_final and last_partial_pcm_len > 0:
+            # Only transcribe the audio recorded after the last partial
+            delta_pcm = pcm[last_partial_pcm_len:]
+            log.info("[final-delta] %.1fs delta (%.1fs total)", len(delta_pcm) / 16000, len(pcm) / 16000)
+            delta_text = await asyncio.to_thread(transcribe_pcm, model, delta_pcm, language)
+            text = (last_partial_text + " " + delta_text).strip() if delta_text else last_partial_text
+        else:
+            kind = "final" if is_final else "partial"
+            log.info("[%s] Transcribing %.1fs...", kind, len(pcm) / 16000)
+            text = await asyncio.to_thread(transcribe_pcm, model, pcm, language)
+            if not is_final:
+                last_partial_pcm_len = len(pcm)
+                last_partial_text = text
+
         if closed:
             return
-        log.info("[%s] Result: %s", kind, text[:200])
-        await ws.send_json({
-            "type": "transcript", "text": text, "is_final": is_final,
-        })
+        log.info("[%s] Result: %s", "final" if is_final else "partial", text[:200])
+        await ws.send_json({"type": "transcript", "text": text, "is_final": is_final})
 
     try:
         while True:
@@ -167,12 +187,14 @@ async def transcribe_ws(ws: WebSocket):
 
                 elif data["type"] == "stop":
                     log.info("Stop received, audio buffer: %d bytes", audio_chunks.tell())
-                    # Wait for any in-flight partial to finish before final
+                    # Let any in-flight partial complete — its result updates
+                    # last_partial_pcm_len/text so the final only transcribes the delta.
+                    # (asyncio.to_thread threads cannot be interrupted anyway, so
+                    # cancelling would just discard the completed result.)
                     if partial_task and not partial_task.done():
-                        partial_task.cancel()
                         try:
                             await partial_task
-                        except asyncio.CancelledError:
+                        except Exception:
                             pass
                     try:
                         await do_transcribe(is_final=True)
