@@ -129,7 +129,7 @@ export default function FreeSpeech() {
         setPartial(msg.text);
         if (msg.is_final) {
           setTranscript(prev => {
-            const sep = prev && !prev.endsWith("\n") ? " " : "";
+            const sep = prev ? (prev.trimEnd().endsWith(".") ? "\n" : " ") : "";
             return prev + sep + msg.text;
           });
           setPartial("");
@@ -200,7 +200,7 @@ export default function FreeSpeech() {
   }, [selectedMic]);
 
   const listenColor = LISTEN_COLORS[listenState];
-  const displayText = transcript + (partial ? (transcript ? " " : "") + partial : "");
+  const displayText = transcript + (partial ? (transcript ? (transcript.trimEnd().endsWith(".") ? "\n" : " ") : "") + partial : "");
 
   return (
     <div style={{
@@ -257,7 +257,7 @@ export default function FreeSpeech() {
             {transcript}
             {partial && (
               <span style={{ color: C.amberDim, fontStyle: "italic" }}>
-                {transcript ? " " : ""}{partial}
+                {transcript ? (transcript.trimEnd().endsWith(".") ? "\n" : " ") : ""}{partial}
               </span>
             )}
           </p>

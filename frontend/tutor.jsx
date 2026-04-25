@@ -503,6 +503,7 @@ export default function Tutor() {
               scrollbarWidth: "thin",
               scrollbarColor: `${C.amberDim} transparent`,
               fontStyle: listenState === "listening" ? "italic" : "normal",
+              whiteSpace: "pre-wrap",
             }}>
               {diff ? (
                 diff.map((d, i) => (
