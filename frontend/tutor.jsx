@@ -42,6 +42,7 @@ export default function Tutor() {
   const [listenState, setListenState]   = useState("idle"); // idle | starting | listening | processing | finished
   const [ttsPlaying, setTtsPlaying]     = useState(false);
   const [fontSize, setFontSize]         = useState(18);
+  const [elapsed, setElapsed]           = useState(0);
   const [leftPct, setLeftPct]           = useState(58); // vertical split %
   const [topPct, setTopPct]             = useState(50); // horizontal split within right %
 
@@ -56,6 +57,7 @@ export default function Tutor() {
   const analyserRef = useRef(null);
   const levelRafRef = useRef(null);
   const micBarRef = useRef(null); // direct DOM ref for mic level bar
+  const intervalRef = useRef(null);
 
   // File loading
   const handleFile = (e) => {
@@ -148,6 +150,7 @@ export default function Tutor() {
   const startListening = useCallback(async () => {
     setListenState("starting");
     setRecognizedText("");
+    setElapsed(0);
 
     const constraints = selectedMic
       ? { audio: { deviceId: { exact: selectedMic } } }
@@ -325,6 +328,20 @@ export default function Tutor() {
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
   }, []);
+
+  // Timer: runs only while actively listening
+  useEffect(() => {
+    if (listenState === "listening") {
+      intervalRef.current = setInterval(() => setElapsed(e => e + 1), 1000);
+    } else {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    return () => { clearInterval(intervalRef.current); intervalRef.current = null; };
+  }, [listenState]);
+
+  const formatTime = (s) =>
+    `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
   // Show file picker if no speech loaded
   if (!speech.length) {
@@ -534,6 +551,19 @@ export default function Tutor() {
         alignItems: "center", justifyContent: "center",
         flexWrap: "wrap",
       }}>
+        {/* Timer */}
+        <div style={{
+          color: elapsed > 0 ? C.amber : C.textFaint,
+          fontSize: 16, fontWeight: 700, letterSpacing: 3,
+          minWidth: 52, textAlign: "center",
+          textShadow: elapsed > 0 ? `0 0 12px ${C.amberFaint}` : "none",
+          transition: "color 0.4s",
+        }}>
+          {formatTime(elapsed)}
+        </div>
+
+        <div style={{ width: 1, height: 24, background: C.divider }} />
+
         {/* Start / Stop listening */}
         {listenState === "idle" || listenState === "finished" ? (
           <button onClick={startListening} style={{
