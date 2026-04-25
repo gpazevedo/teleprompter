@@ -25,7 +25,7 @@ Teleprompter with smooth auto-scroll and TTS narration.
 | Reset | `R` | RESET button |
 | Mirror | `M` | MIRROR button |
 
-Speed adjusts live during TTS playback — voice and scroll respond immediately. Select text before pressing T to speak only the selection.
+Speed adjusts live during TTS playback — voice and scroll respond immediately. Select text before pressing T to speak only the selection. Text can be loaded from a file or pasted directly.
 
 ### Tutor
 
@@ -35,7 +35,11 @@ Pronunciation practice: load reference text, speak into the mic, compare your sp
 - **Amber** — extra words (added/substituted)
 - **Red strikethrough** — missing words (skipped)
 
-Whisper model and language are selectable. Mic and audio output can be switched live.
+Includes a chronometer that starts on first word and stops when finished. Whisper model and language are selectable. Mic and audio output can be switched live.
+
+### Free Speech
+
+Open-ended transcription without a reference text. Accumulates a running transcript across multiple recording sessions. Includes a chronometer and live audio level meter. Useful for rehearsing unscripted speeches.
 
 ## Run locally
 

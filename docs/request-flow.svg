@@ -174,7 +174,7 @@
      ═══════════════════════════════════════════════════════════ -->
 <rect x="30" y="646" width="1240" height="590" rx="3" fill="#010e12" stroke="#22ccff" stroke-width="0.8" opacity="0.7"/>
 <text x="48"  y="664" class="f3">WS /api/transcribe</text>
-<text x="218" y="664" class="fs">— Tutor panel pronunciation practice</text>
+<text x="218" y="664" class="fs">— Tutor / Free Speech panels · same WebSocket protocol</text>
 
 <!-- User → FE: Listen -->
 <line x1="89" y1="682" x2="287" y2="682" stroke="#ffaa22" stroke-width="1.4" marker-end="url(#ma)"/>
@@ -252,9 +252,9 @@
 <line x1="299" y1="1085" x2="562" y2="1085" stroke="#22ccff" stroke-width="1.4" marker-end="url(#mc)"/>
 <text x="430" y="1080" text-anchor="middle" class="mc">{stop}</text>
 
-<!-- note: cancel partial -->
-<rect x="483" y="1094" width="175" height="20" rx="2" fill="#010e12" stroke="#114433" stroke-width="0.7"/>
-<text x="570" y="1108" text-anchor="middle" class="nt">cancel in-flight partial task</text>
+<!-- note: await partial, then delta-only final -->
+<rect x="435" y="1094" width="270" height="20" rx="2" fill="#010e12" stroke="#114433" stroke-width="0.7"/>
+<text x="570" y="1108" text-anchor="middle" class="nt">await in-flight partial (records last_partial_pcm_len / text)</text>
 
 <!-- BE → Whisper: ffmpeg decode full buffer -->
 <line x1="574" y1="1127" x2="1177" y2="1127" stroke="#bb88ff" stroke-width="1.4" marker-end="url(#mp)"/>
@@ -264,9 +264,9 @@
 <line x1="1181" y1="1145" x2="578" y2="1145" stroke="#bb88ff" stroke-width="1.1" stroke-dasharray="5,3" marker-end="url(#mp)"/>
 <text x="876" y="1140" text-anchor="middle" class="mp">float32 PCM array</text>
 
-<!-- BE → Whisper: transcribe final -->
+<!-- BE → Whisper: transcribe delta-only final -->
 <line x1="574" y1="1163" x2="1177" y2="1163" stroke="#bb88ff" stroke-width="1.4" marker-end="url(#mp)"/>
-<text x="876" y="1158" text-anchor="middle" class="mp">transcribe(pcm, language, vad_filter=True)  [final]</text>
+<text x="876" y="1158" text-anchor="middle" class="mp">transcribe(pcm[last_partial_pcm_len:], language)  [delta-only]</text>
 
 <!-- Whisper → BE: final text (dashed) -->
 <line x1="1181" y1="1181" x2="578" y2="1181" stroke="#bb88ff" stroke-width="1.1" stroke-dasharray="5,3" marker-end="url(#mp)"/>
