@@ -56,7 +56,7 @@ def transcribe_audio(model: WhisperModel, audio_bytes: bytes, language: str) -> 
         pcm,
         language=language,
         vad_filter=True,
-        vad_parameters={"min_silence_duration_ms": 500},
+        vad_parameters={"min_silence_duration_ms": 300},
     )
     return " ".join(s.text.strip() for s in segments)
 
