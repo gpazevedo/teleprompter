@@ -2,11 +2,13 @@ import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
 import Teleprompter from "./teleprompter.jsx";
 import Tutor from "./tutor.jsx";
+import FreeSpeech from "./freespeech.jsx";
 import { C } from "./shared.jsx";
 
 const TABS = [
-  { id: "speaker", label: "SPEAKER" },
-  { id: "tutor",   label: "TUTOR" },
+  { id: "speaker",     label: "SPEAKER" },
+  { id: "tutor",       label: "TUTOR" },
+  { id: "freespeech",  label: "FREE SPEECH" },
 ];
 
 function App() {
@@ -54,6 +56,9 @@ function App() {
         </div>
         <div style={{ position: "absolute", inset: 0, display: tab === "tutor" ? "flex" : "none" }}>
           <Tutor />
+        </div>
+        <div style={{ position: "absolute", inset: 0, display: tab === "freespeech" ? "flex" : "none" }}>
+          <FreeSpeech />
         </div>
       </div>
     </div>
