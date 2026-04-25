@@ -57,7 +57,14 @@ def transcribe_pcm(model: WhisperModel, pcm: np.ndarray, language: str) -> str:
         vad_filter=True,
         vad_parameters={"min_silence_duration_ms": 300},
     )
-    return " ".join(s.text.strip() for s in segments)
+    parts = [s.text.strip() for s in segments if s.text.strip()]
+    result = ""
+    for part in parts:
+        if result:
+            result += ("\n" if result.endswith(".") else " ") + part
+        else:
+            result = part
+    return result
 
 
 def transcribe_audio(model: WhisperModel, audio_bytes: bytes, language: str) -> str:
@@ -150,7 +157,11 @@ async def transcribe_ws(ws: WebSocket):
             delta_pcm = pcm[last_partial_pcm_len:]
             log.info("[final-delta] %.1fs delta (%.1fs total)", len(delta_pcm) / 16000, len(pcm) / 16000)
             delta_text = await asyncio.to_thread(transcribe_pcm, model, delta_pcm, language)
-            text = (last_partial_text + " " + delta_text).strip() if delta_text else last_partial_text
+            if delta_text:
+                sep = "\n" if last_partial_text.endswith(".") else " "
+                text = (last_partial_text + sep + delta_text).strip()
+            else:
+                text = last_partial_text
         else:
             kind = "final" if is_final else "partial"
             log.info("[%s] Transcribing %.1fs...", kind, len(pcm) / 16000)
