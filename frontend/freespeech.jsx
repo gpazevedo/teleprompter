@@ -22,6 +22,7 @@ export default function FreeSpeech() {
   const [whisperModel, setWhisperModel] = useState("small");
   const [listenState, setListenState]   = useState("idle");
   const [fontSize, setFontSize]         = useState(22);
+  const [elapsed, setElapsed]           = useState(0);
 
   const { audioInputs, selectedMic, setSelectedMic } = useAudioDevices();
 
@@ -32,6 +33,7 @@ export default function FreeSpeech() {
   const levelRafRef   = useRef(null);
   const micBarRef     = useRef(null);
   const textAreaRef   = useRef(null);
+  const intervalRef   = useRef(null);
 
   const startLevelMeter = useCallback((stream, silenceDurationMs = 300) => {
     const ctx = new AudioContext();
@@ -199,6 +201,20 @@ export default function FreeSpeech() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMic]);
 
+  // Timer: accumulates while actively listening, resets with CLEAR
+  useEffect(() => {
+    if (listenState === "listening") {
+      intervalRef.current = setInterval(() => setElapsed(e => e + 1), 1000);
+    } else {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    return () => { clearInterval(intervalRef.current); intervalRef.current = null; };
+  }, [listenState]);
+
+  const formatTime = (s) =>
+    `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+
   const listenColor = LISTEN_COLORS[listenState];
   const displayText = transcript + (partial ? (transcript ? (transcript.trimEnd().endsWith(".") ? "\n" : " ") : "") + partial : "");
 
@@ -282,6 +298,19 @@ export default function FreeSpeech() {
         alignItems: "center", justifyContent: "center",
         flexWrap: "wrap",
       }}>
+        {/* Timer */}
+        <div style={{
+          color: elapsed > 0 ? C.amber : C.textFaint,
+          fontSize: 16, fontWeight: 700, letterSpacing: 3,
+          minWidth: 52, textAlign: "center",
+          textShadow: elapsed > 0 ? `0 0 12px ${C.amberFaint}` : "none",
+          transition: "color 0.4s",
+        }}>
+          {formatTime(elapsed)}
+        </div>
+
+        <div style={{ width: 1, height: 24, background: C.divider }} />
+
         {listenState === "idle" || listenState === "finished" ? (
           <button onClick={startListening} style={{
             ...btnSmall,
@@ -316,7 +345,7 @@ export default function FreeSpeech() {
         <div style={{ width: 1, height: 24, background: C.divider }} />
 
         <button
-          onClick={() => { setTranscript(""); setPartial(""); }}
+          onClick={() => { setTranscript(""); setPartial(""); setElapsed(0); }}
           style={{
             ...btnSmall,
             padding: "7px 16px", fontSize: 13, letterSpacing: 1,
