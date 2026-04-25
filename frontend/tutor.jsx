@@ -62,18 +62,20 @@ export default function Tutor() {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => {
-      const items = parseSpeech(ev.target.result);
-      setSpeech(items);
-      setFileName(file.name);
-      const plainText = items
-        .filter(i => i.type === "line" || i.type === "bold" || i.type === "break")
-        .map(i => i.type === "break" ? "" : i.text)
-        .join("\n\n")
-        .replace(/(\n\n){2,}/g, "\n\n"); // collapse multiple blanks from adjacent breaks
-      setUserText(plainText);
-    };
+    reader.onload = (ev) => handleText(ev.target.result, file.name);
     reader.readAsText(file);
+  };
+
+  const handleText = (raw, name = "pasted text") => {
+    const items = parseSpeech(raw);
+    setSpeech(items);
+    setFileName(name);
+    const plainText = items
+      .filter(i => i.type === "line" || i.type === "bold" || i.type === "break")
+      .map(i => i.type === "break" ? "" : i.text)
+      .join("\n\n")
+      .replace(/(\n\n){2,}/g, "\n\n");
+    setUserText(plainText);
   };
 
   const startLevelMeter = useCallback((stream, silenceDurationMs = 300) => {
@@ -311,7 +313,7 @@ export default function Tutor() {
 
   // Show file picker if no speech loaded
   if (!speech.length) {
-    return <FilePicker onFile={handleFile} title="Load practice text" />;
+    return <FilePicker onFile={handleFile} onText={handleText} title="Load practice text" />;
   }
 
   const listenColor = LISTEN_COLORS[listenState];

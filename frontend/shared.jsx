@@ -40,7 +40,9 @@ export const Vignette = ({ style }) => (
   }} />
 );
 
-export function FilePicker({ onFile, title = "Load your speech" }) {
+export function FilePicker({ onFile, onText, title = "Load your speech" }) {
+  const [pasted, setPasted] = useState("");
+
   return (
     <div style={{
       position: "fixed", inset: 0,
@@ -49,7 +51,9 @@ export function FilePicker({ onFile, title = "Load your speech" }) {
       alignItems: "center", justifyContent: "center",
       fontFamily: "'Courier Prime', 'Courier New', monospace",
       color: C.text,
-      gap: 32,
+      gap: 28,
+      overflowY: "auto",
+      padding: "32px 16px",
     }}>
       <ScanLines />
       <div style={{
@@ -78,7 +82,7 @@ export function FilePicker({ onFile, title = "Load your speech" }) {
           position: "relative", zIndex: 1,
           display: "flex", flexDirection: "column", alignItems: "center", gap: 12,
           border: `1px solid ${C.divider}`,
-          borderRadius: 8, padding: "36px 60px",
+          borderRadius: 8, padding: "28px 60px",
           cursor: "pointer",
           background: "rgba(255,255,255,0.02)",
           transition: "border-color 0.2s, background 0.2s",
@@ -90,6 +94,50 @@ export function FilePicker({ onFile, title = "Load your speech" }) {
         <div style={{ fontSize: 13, color: C.textFaint, letterSpacing: 2 }}>CHOOSE .TXT FILE</div>
         <input type="file" accept=".txt" onChange={onFile} style={{ display: "none" }} />
       </label>
+
+      <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", gap: 16, width: "min(560px, 90vw)" }}>
+        <div style={{ flex: 1, height: 1, background: C.divider }} />
+        <span style={{ fontSize: 10, letterSpacing: 3, color: "rgba(255,255,255,0.15)" }}>OR PASTE TEXT</span>
+        <div style={{ flex: 1, height: 1, background: C.divider }} />
+      </div>
+
+      <div style={{ position: "relative", zIndex: 1, width: "min(560px, 90vw)", display: "flex", flexDirection: "column", gap: 10 }}>
+        <textarea
+          value={pasted}
+          onChange={e => setPasted(e.target.value)}
+          placeholder="Paste your speech text here..."
+          style={{
+            width: "100%", height: 160, resize: "vertical",
+            background: "rgba(255,255,255,0.03)",
+            color: C.text,
+            border: `1px solid ${C.divider}`,
+            borderRadius: 6,
+            padding: "12px 14px",
+            fontSize: 14, lineHeight: 1.6,
+            fontFamily: "'EB Garamond', Georgia, serif",
+            outline: "none",
+            boxSizing: "border-box",
+          }}
+          onFocus={e => { e.currentTarget.style.borderColor = C.amberDim; }}
+          onBlur={e => { e.currentTarget.style.borderColor = C.divider; }}
+        />
+        <button
+          onClick={() => pasted.trim() && onText?.(pasted.trim())}
+          disabled={!pasted.trim()}
+          style={{
+            ...btnSmall,
+            alignSelf: "flex-end",
+            padding: "7px 24px", fontSize: 13, fontWeight: 700, letterSpacing: 1,
+            background: pasted.trim() ? `${C.amber}22` : "rgba(255,255,255,0.03)",
+            color: pasted.trim() ? C.amber : "rgba(255,255,255,0.2)",
+            border: `1px solid ${pasted.trim() ? C.amberDim : C.divider}`,
+            cursor: pasted.trim() ? "pointer" : "default",
+            transition: "all 0.2s",
+          }}
+        >
+          USE THIS TEXT →
+        </button>
+      </div>
 
       <div style={{ position: "relative", zIndex: 1, fontSize: 10, color: "rgba(255,255,255,0.15)", letterSpacing: 2 }}>
         Plain text · ## sections · **bold** · --- breaks
