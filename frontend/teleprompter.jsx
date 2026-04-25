@@ -128,6 +128,12 @@ export default function Teleprompter() {
     reader.readAsText(file);
   };
 
+  const handleText = (text) => {
+    setSpeech(parseSpeech(text));
+    setFileName("pasted text");
+    reset();
+  };
+
   // ── Scroll helpers ───────────────────────────────────────────────────────
 
   const scrollToItem = useCallback((itemIdx) => {
@@ -404,7 +410,7 @@ export default function Teleprompter() {
   // ── Render ───────────────────────────────────────────────────────────────
 
   if (!speech.length) {
-    return <FilePicker onFile={handleFile} />;
+    return <FilePicker onFile={handleFile} onText={handleText} />;
   }
 
   return (
