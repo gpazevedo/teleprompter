@@ -20,6 +20,7 @@ RUN uv sync --frozen --no-dev
 
 # Copy backend source
 COPY backend/main.py ./
+COPY backend/lib/ ./lib/
 
 # Copy built frontend into static/
 COPY --from=frontend-build /app/dist ./static

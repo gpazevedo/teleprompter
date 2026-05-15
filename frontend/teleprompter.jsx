@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { parseSpeech, countSentences, buildItemTimings } from "./speechUtils.js";
-import { C, btnSmall, ScanLines, Vignette, FilePicker, b64ToBlob, useAudioDevices, DeviceSelect } from "./shared.jsx";
+import { parseSpeech, buildItemTimings } from "./speechUtils.js";
+import { C, btnSmall } from "./lib/theme.js";
+import { ScanLines, Vignette, DeviceSelect } from "./lib/ui.jsx";
+import { b64ToBlob, useAudioDevices } from "./lib/audio.js";
+import { FilePicker } from "./lib/FilePicker.jsx";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -216,12 +219,7 @@ export default function Teleprompter() {
     const ctrl = new AbortController();
     abortRef.current = () => ctrl.abort();
 
-    // Split speakableItems into same CHUNK_SIZE groups as the backend
-    const CHUNK_SIZE = 3;
-    const itemChunks = [];
-    for (let i = 0; i < speakableItems.length; i += CHUNK_SIZE) {
-      itemChunks.push(speakableItems.slice(i, i + CHUNK_SIZE));
-    }
+    let itemChunks = null; // populated when chunk_size arrives in first NDJSON line
 
     const scroller = scrollRef.current;
     // Merged scroll timings across all chunks; startMs is global (chunk-offset adjusted)
@@ -346,7 +344,13 @@ export default function Teleprompter() {
         buf = lines.pop();
         for (const line of lines) {
           if (!line.trim()) continue;
-          const { audio_b64, boundaries, chunk: chunkIdx } = JSON.parse(line);
+          const { audio_b64, boundaries, chunk_size, chunk: chunkIdx } = JSON.parse(line);
+          if (itemChunks === null) {
+            itemChunks = [];
+            for (let i = 0; i < speakableItems.length; i += chunk_size) {
+              itemChunks.push(speakableItems.slice(i, i + chunk_size));
+            }
+          }
           const blobUrl = b64ToBlob(audio_b64);
           const audio = new Audio(blobUrl);
           audio._blobUrl = blobUrl;

@@ -9,6 +9,7 @@ dependencies = [
     "fastapi>=0.135.1",
     "faster-whisper",
     "imageio-ffmpeg>=0.6.0",
+    "python-dotenv>=1.2.2",
     "uvicorn[standard]>=0.44.0",
 ]
 

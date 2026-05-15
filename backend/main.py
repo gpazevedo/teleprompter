@@ -2,74 +2,22 @@ import asyncio
 import base64
 import json
 import logging
-import subprocess
 from io import BytesIO
 from pathlib import Path
 
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).parent / ".env")  # silent if .env missing — optional config
+
 import edge_tts
-import imageio_ffmpeg
-import numpy as np
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from faster_whisper import WhisperModel
 from pydantic import BaseModel
 
-FFMPEG = imageio_ffmpeg.get_ffmpeg_exe()
+from lib.audio import decode_webm_to_pcm, get_whisper_model, transcribe_pcm
 
 log = logging.getLogger("uvicorn")
 app = FastAPI()
-
-# Cache loaded Whisper models to avoid reloading per connection
-_whisper_models: dict[str, WhisperModel] = {}
-
-
-def get_whisper_model(name: str) -> WhisperModel:
-    if name not in _whisper_models:
-        _whisper_models[name] = WhisperModel(name, compute_type="int8")
-    return _whisper_models[name]
-
-
-def decode_webm_to_pcm(audio_bytes: bytes) -> np.ndarray:
-    """Decode webm/opus audio to 16kHz float32 PCM via ffmpeg."""
-    proc = subprocess.run(
-        [
-            FFMPEG, "-i", "pipe:0",
-            "-f", "f32le", "-acodec", "pcm_f32le",
-            "-ar", "16000", "-ac", "1",
-            "pipe:1",
-        ],
-        input=audio_bytes,
-        capture_output=True,
-    )
-    if proc.returncode != 0:
-        raise RuntimeError(f"ffmpeg failed: {proc.stderr.decode()}")
-    return np.frombuffer(proc.stdout, dtype=np.float32)
-
-
-def transcribe_pcm(model: WhisperModel, pcm: np.ndarray, language: str) -> str:
-    """Transcribe float32 16kHz PCM, return text."""
-    if len(pcm) < 1600:  # < 0.1s at 16kHz
-        return ""
-    segments, _ = model.transcribe(
-        pcm,
-        language=language,
-        vad_filter=True,
-        vad_parameters={"min_silence_duration_ms": 300},
-    )
-    parts = [s.text.strip() for s in segments if s.text.strip()]
-    result = ""
-    for part in parts:
-        if result:
-            result += ("\n" if result.endswith(".") else " ") + part
-        else:
-            result = part
-    return result
-
-
-def transcribe_audio(model: WhisperModel, audio_bytes: bytes, language: str) -> str:
-    """Decode webm/opus bytes to PCM and transcribe."""
-    return transcribe_pcm(model, decode_webm_to_pcm(audio_bytes), language)
 
 
 class SpeakRequest(BaseModel):
@@ -86,7 +34,7 @@ async def list_voices():
     ]
 
 
-CHUNK_SIZE = 3  # paragraphs per streamed chunk
+CHUNK_SIZE = 3  # paragraphs per chunk — communicated to frontend in each NDJSON line
 
 
 def split_into_chunks(text: str) -> list[str]:
@@ -118,6 +66,7 @@ async def speak(req: SpeakRequest):
             yield json.dumps({
                 "audio_b64": base64.b64encode(audio_buf.getvalue()).decode(),
                 "boundaries": boundaries,
+                "chunk_size": CHUNK_SIZE,
                 "chunk": i,
                 "is_last": i == len(chunks) - 1,
             }) + "\n"
@@ -125,12 +74,14 @@ async def speak(req: SpeakRequest):
     return StreamingResponse(generate(), media_type="application/x-ndjson")
 
 
+# WebSocket message types must stay synchronized with frontend/lib/transcription-protocol.js
 @app.websocket("/api/transcribe")
 async def transcribe_ws(ws: WebSocket):
     await ws.accept()
     audio_chunks = BytesIO()
     model = None
     language = "en"
+    vad_filter = True
     closed = False
     partial_task: asyncio.Task | None = None
     last_partial_pcm_len: int = 0   # sample count at time of last completed partial
@@ -156,7 +107,7 @@ async def transcribe_ws(ws: WebSocket):
             # Only transcribe the audio recorded after the last partial
             delta_pcm = pcm[last_partial_pcm_len:]
             log.info("[final-delta] %.1fs delta (%.1fs total)", len(delta_pcm) / 16000, len(pcm) / 16000)
-            delta_text = await asyncio.to_thread(transcribe_pcm, model, delta_pcm, language)
+            delta_text = await asyncio.to_thread(transcribe_pcm, model, delta_pcm, language, vad_filter)
             if delta_text:
                 sep = "\n" if last_partial_text.endswith(".") else " "
                 text = (last_partial_text + sep + delta_text).strip()
@@ -165,7 +116,7 @@ async def transcribe_ws(ws: WebSocket):
         else:
             kind = "final" if is_final else "partial"
             log.info("[%s] Transcribing %.1fs...", kind, len(pcm) / 16000)
-            text = await asyncio.to_thread(transcribe_pcm, model, pcm, language)
+            text = await asyncio.to_thread(transcribe_pcm, model, pcm, language, vad_filter)
             if not is_final:
                 last_partial_pcm_len = len(pcm)
                 last_partial_text = text
@@ -185,7 +136,8 @@ async def transcribe_ws(ws: WebSocket):
                 if data["type"] == "start":
                     language = data.get("language", "en")
                     model_name = data.get("model", "small")
-                    log.info("Loading whisper model '%s' (lang=%s)...", model_name, language)
+                    vad_filter = data.get("vad", True)
+                    log.info("Loading whisper model '%s' (lang=%s vad=%s)...", model_name, language, vad_filter)
                     model = await asyncio.to_thread(get_whisper_model, model_name)
                     log.info("Model '%s' ready", model_name)
                     await ws.send_json({"type": "ready"})

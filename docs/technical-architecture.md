@@ -28,7 +28,7 @@ Two independent play modes share the same scroll container:
 
 **Manual scroll** — a `requestAnimationFrame` loop reads `speedRef` (a ref, not state) so the loop never restarts on speed change. Sub-pixel amounts accumulate in `accumRef` and flush when ≥ 1 px, preventing stall at slow speeds.
 
-**TTS + synchronized scroll** — POSTs text and voice to `/api/speak`, reads an NDJSON stream where each line is a chunk of 3 paragraphs: `{audio_b64, boundaries, chunk, is_last}`. The first chunk starts playing immediately; subsequent chunks queue and play sequentially. A rAF loop maps `audio.currentTime + globalOffsetMs` against a merged boundary list to keep `scrollTop` in sync sentence by sentence. Speed slider updates `audio.playbackRate` and the scroll interpolation coefficient live every frame without restarting the loop.
+**TTS + synchronized scroll** — POSTs text and voice to `/api/speak`, reads an NDJSON stream: `{audio_b64, boundaries, chunk_size, chunk, is_last}`. The frontend reads `chunk_size` from the response to dynamically partition its internal item groups. The first chunk starts playing immediately; subsequent chunks queue and play sequentially. A rAF loop maps `audio.currentTime + globalOffsetMs` against a merged boundary list to keep `scrollTop` in sync sentence by sentence. Speed slider updates `audio.playbackRate` and the scroll interpolation coefficient live every frame without restarting the loop.
 
 ### Tutor panel (`tutor.jsx`)
 
@@ -36,31 +36,42 @@ Pronunciation practice against a reference text. Reference can be loaded from a 
 
 State machine: `idle → starting → listening → processing → finished`.
 
-The listen flow:
+The `useMicTranscription` hook (`transcription.js`) encapsulates the WebSocket lifecycle, MediaRecorder, silence detection, and audio level meter — shared by both Tutor and Free Speech panels. The listen flow:
 
-1. `getUserMedia` acquires the selected microphone.
+1. `getAudioStream(selectedMic)` from `lib/audio.js` acquires the selected microphone (or tab audio via `getDisplayMedia`).
 2. `AudioContext → AnalyserNode` feeds `AudioLevelMeter`, which writes bar width and glow directly to the DOM via a ref — no React state, no re-renders at 60 fps.
 3. `MediaRecorder` emits 1-second `audio/webm;codecs=opus` chunks sent as binary WebSocket frames.
 4. A silence detector fires `{pause_detected}` after ≈ 300 ms of quiet, triggering a partial transcription from the backend.
 5. On Stop the frontend sends `{stop}` and waits for the final transcript.
+6. Hot-swapping the microphone mid-session tears down the old stream/recorder/meter, acquires the new device, and re-attaches — WebSocket stays open throughout.
 
 A chronometer counts active listening seconds and is displayed in the control bar.
 
-The received transcript is diffed word-by-word against the reference text (`diffUtils.js` — LCS algorithm) and rendered as matched / extra / missing tokens. Clicking a missed word calls `playTts` from `shared.jsx` to pronounce it via TTS in the session language.
+The received transcript is diffed word-by-word against the reference text (`diffUtils.js` — LCS algorithm) and rendered as matched / extra / missing tokens. Clicking a missed word calls `playTts` from `lib/audio.js` to pronounce it via TTS in the session language.
 
 ### Free Speech panel (`freespeech.jsx`)
 
-Open-ended transcription without a reference text. Uses the same WebSocket protocol and state machine as Tutor (`idle → starting → listening → processing → finished`).
+Open-ended transcription without a reference text. Uses the same `useMicTranscription` hook and state machine as Tutor (`idle → starting → listening → processing → finished`).
 
 Transcript accumulates across multiple START/STOP recording sessions within the page load — each finalized result is appended to the running text. Partial text is shown in dimmed italic while recording. A chronometer ticks while actively listening and pauses between sessions; CLEAR resets both transcript and timer.
 
-### Shared utilities (`shared.jsx`)
+### Shared libraries (`frontend/lib/`)
 
-Single implementations used by all panels: `b64ToBlob`, `playTts`, `useAudioDevices`, `DeviceSelect`, `AudioLevelMeter`, `FilePicker`, `ScanLines`, `Vignette`, color palette `C`.
+Utilities extracted into focused modules, used by all panels:
+
+| Module | Exports |
+| --- | --- |
+| `lib/theme.js` | Color palette `C`, `btnSmall` style |
+| `lib/ui.jsx` | `ScanLines`, `Vignette`, `DeviceSelect`, `AudioLevelMeter` |
+| `lib/audio.js` | `b64ToBlob`, `playTts`, `useAudioDevices`, `getAudioStream` |
+| `lib/FilePicker.jsx` | `FilePicker` |
+| `lib/transcription-protocol.js` | `WS_MSG` — canonical WebSocket message type constants |
 
 ---
 
-## Backend (`backend/main.py`)
+## Backend
+
+Core logic in `backend/main.py`; Whisper model management and audio decoding extracted to `backend/lib/audio.py`.
 
 Three endpoints:
 
@@ -70,13 +81,13 @@ Calls `edge_tts.list_voices()` and returns the list of available Azure Neural vo
 
 ### `POST /api/speak`
 
-Splits the request text into chunks of 3 non-empty paragraphs. For each chunk, calls `edge_tts.Communicate(chunk_text, voice).stream()`, collects audio bytes and `SentenceBoundary` events (offset ÷ 10 000 → ms), then yields one NDJSON line: `{audio_b64, boundaries, chunk, is_last}`. Returns a `StreamingResponse` with `application/x-ndjson`. The request is cancellable via `AbortController` at any time.
+Splits the request text into chunks of 3 non-empty paragraphs. For each chunk, calls `edge_tts.Communicate(chunk_text, voice).stream()`, collects audio bytes and `SentenceBoundary` events (offset ÷ 10 000 → ms), then yields one NDJSON line: `{audio_b64, boundaries, chunk_size, chunk, is_last}`. The frontend reads `chunk_size` to partition its internal item groups, eliminating a duplicated constant. Returns a `StreamingResponse` with `application/x-ndjson`. The request is cancellable via `AbortController` at any time.
 
 ### `WS /api/transcribe`
 
 WebSocket session lifecycle:
 
-1. Client sends `{type:"start", language, model}`.
+1. Client sends `{type:"start", language, model, vad}`.
 2. Backend loads (or retrieves from cache) the requested `WhisperModel`.
 3. Backend replies `{type:"ready"}` — client starts `MediaRecorder`.
 4. Client streams binary audio chunks.

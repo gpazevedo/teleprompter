@@ -776,6 +776,7 @@ dependencies = [
     { name = "fastapi" },
     { name = "faster-whisper" },
     { name = "imageio-ffmpeg" },
+    { name = "python-dotenv" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 
@@ -785,6 +786,7 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.135.1" },
     { name = "faster-whisper", git = "https://github.com/gpazevedo/faster-whisper?rev=51ae165537f493cc1fdffad7ef5c8021518be487" },
     { name = "imageio-ffmpeg", specifier = ">=0.6.0" },
+    { name = "python-dotenv", specifier = ">=1.2.2" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.44.0" },
 ]
 
