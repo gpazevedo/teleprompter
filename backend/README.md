@@ -35,7 +35,7 @@ Synthesizes text in chunks of 3 paragraphs and streams the results as NDJSON (`a
 #### Response (NDJSON — one object per line)
 
 ```json
-{ "audio_b64": "<base64-encoded MP3>", "boundaries": [{ "word": "Hello world.", "offset_ms": 0, "duration_ms": 850 }], "chunk": 0, "is_last": true }
+{ "audio_b64": "<base64-encoded MP3>", "boundaries": [{ "word": "Hello world.", "offset_ms": 0, "duration_ms": 850 }], "chunk_size": 3, "chunk": 0, "is_last": true }
 ```
 
 The text is split on `\n\n` into groups of 3 paragraphs (`split_into_chunks`). Each chunk is synthesized independently so the frontend can start playing the first chunk while the rest are still being synthesized.
@@ -55,7 +55,7 @@ Streams audio from the browser, returns partial and final transcriptions.
 
 | Frame | Description |
 | --- | --- |
-| `{"type":"start","language":"en","model":"small"}` | Load Whisper model, begin session |
+| `{"type":"start","language":"en","model":"small","vad":true}` | Load Whisper model, begin session. `vad` defaults to `true` if omitted (VAD filter enabled). |
 | Binary | Raw `audio/webm;codecs=opus` chunks (1-second intervals from `MediaRecorder`) |
 | `{"type":"pause_detected"}` | Silence detected by the frontend — trigger a partial transcription |
 | `{"type":"stop"}` | End of recording — trigger final transcription and close |
@@ -84,7 +84,7 @@ Browser MediaRecorder (webm/opus)
 
 `decode_webm_to_pcm` shells out to the bundled ffmpeg via `subprocess.run` with stdin/stdout pipes. This is synchronous; it runs in a thread via `asyncio.to_thread` so it does not block the event loop.
 
-Whisper's built-in VAD filter (`vad_filter=True`, `min_silence_duration_ms=500`) suppresses non-speech regions inside each transcription call.
+Whisper's built-in VAD filter (`vad_filter=True`, `min_silence_duration_ms=300`, controllable per session via the `vad` start parameter) suppresses non-speech regions inside each transcription call.
 
 ## Concurrency model
 
@@ -92,12 +92,12 @@ The server is single-process, async. Key points:
 
 - **Whisper inference** is CPU-bound and synchronous — always dispatched via `asyncio.to_thread`.
 - **Partial transcription tasks** (`partial_task`) are tracked so a second `pause_detected` signal does not launch a concurrent transcription while one is already running.
-- On `stop`, any in-flight partial task is cancelled before the final transcription runs.
+- On `stop`, any in-flight partial task is awaited (not cancelled) so its result updates `last_partial_pcm_len/text`. The final transcription then only processes the audio delta since the last partial, avoiding redundant inference.
 - The `closed` flag guards against sending on the WebSocket after disconnect.
 
 ## Model caching
 
-`_whisper_models` is a module-level dict. `get_whisper_model(name)` loads the model on first call and returns the cached instance thereafter. Models persist for the lifetime of the server process, shared across all WebSocket connections.
+`_whisper_models` is a module-level dict in `backend/lib/audio.py`. `get_whisper_model(name)` loads the model on first call and returns the cached instance thereafter. Models persist for the lifetime of the server process, shared across all WebSocket connections.
 
 ```python
 _whisper_models: dict[str, WhisperModel] = {}

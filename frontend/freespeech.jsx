@@ -1,11 +1,10 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
-import {
-  C, btnSmall, ScanLines, Vignette,
-  useAudioDevices, DeviceSelect, AudioLevelMeter,
-} from "./shared.jsx";
+import { C, btnSmall } from "./lib/theme.js";
+import { ScanLines, Vignette, DeviceSelect, AudioLevelMeter } from "./lib/ui.jsx";
+import { getAudioStream, useAudioDevices } from "./lib/audio.js";
+import { useMicTranscription } from "./transcription.js";
 
 const WHISPER_MODELS = ["tiny", "base", "small", "medium", "large-v3"];
-const SILENCE_THRESHOLD = 0.04;
 
 const LISTEN_COLORS = {
   idle:       C.amber,
@@ -20,186 +19,48 @@ export default function FreeSpeech() {
   const [partial, setPartial]           = useState("");  // current partial text
   const [language, setLanguage]         = useState("en");
   const [whisperModel, setWhisperModel] = useState("small");
-  const [listenState, setListenState]   = useState("idle");
   const [fontSize, setFontSize]         = useState(22);
   const [elapsed, setElapsed]           = useState(0);
 
   const { audioInputs, selectedMic, setSelectedMic } = useAudioDevices();
 
-  const wsRef         = useRef(null);
-  const recorderRef   = useRef(null);
-  const streamRef     = useRef(null);
-  const analyserRef   = useRef(null);
-  const levelRafRef   = useRef(null);
-  const micBarRef     = useRef(null);
-  const textAreaRef   = useRef(null);
-  const intervalRef   = useRef(null);
+  const micBarRef   = useRef(null);
+  const textAreaRef = useRef(null);
+  const intervalRef = useRef(null);
 
-  const startLevelMeter = useCallback((stream, silenceDurationMs = 300) => {
-    const ctx = new AudioContext();
-    const source = ctx.createMediaStreamSource(stream);
-    const analyser = ctx.createAnalyser();
-    analyser.fftSize = 256;
-    source.connect(analyser);
-    analyserRef.current = { ctx, analyser, silenceStart: null, pauseSent: false };
+  const getStream = useCallback(() => getAudioStream(selectedMic), [selectedMic]);
 
-    const data = new Uint8Array(analyser.frequencyBinCount);
-    const tick = () => {
-      analyser.getByteFrequencyData(data);
-      const avg = data.reduce((a, b) => a + b, 0) / data.length;
-      const level = avg / 128;
-
-      if (micBarRef.current) {
-        micBarRef.current.style.width = `${Math.min(100, level * 100)}%`;
-        micBarRef.current.style.background = level > 0.7
-          ? "linear-gradient(to right, #22cc66, #ff4422)"
-          : level > 0.4
-            ? "linear-gradient(to right, #22cc66, #ffaa22)"
-            : "#22cc66";
-        micBarRef.current.style.boxShadow = level > 0.3 ? "0 0 6px rgba(34,204,102,0.4)" : "none";
-      }
-
-      const a = analyserRef.current;
-      if (a) {
-        const now = performance.now();
-        if (level < SILENCE_THRESHOLD) {
-          if (a.silenceStart === null) a.silenceStart = now;
-          if (!a.pauseSent && now - a.silenceStart >= silenceDurationMs) {
-            a.pauseSent = true;
-            const ws = wsRef.current;
-            if (ws && ws.readyState === WebSocket.OPEN) {
-              ws.send(JSON.stringify({ type: "pause_detected" }));
-            }
-          }
-        } else {
-          a.silenceStart = null;
-          a.pauseSent = false;
-        }
-      }
-
-      levelRafRef.current = requestAnimationFrame(tick);
-    };
-    levelRafRef.current = requestAnimationFrame(tick);
+  const onPartial = useCallback((text) => setPartial(text), []);
+  const onFinal   = useCallback((text) => {
+    setTranscript(prev => {
+      const sep = prev ? (prev.trimEnd().endsWith(".") ? "\n" : " ") : "";
+      return prev + sep + text;
+    });
+    setPartial("");
   }, []);
 
-  const stopLevelMeter = useCallback(() => {
-    if (levelRafRef.current) cancelAnimationFrame(levelRafRef.current);
-    levelRafRef.current = null;
-    analyserRef.current?.ctx.close();
-    analyserRef.current = null;
-    if (micBarRef.current) micBarRef.current.style.width = "0%";
-  }, []);
-
-  const cleanup = useCallback(() => {
-    if (recorderRef.current?.state === "recording") recorderRef.current.stop();
-    recorderRef.current = null;
-    streamRef.current?.getTracks().forEach(t => t.stop());
-    streamRef.current = null;
-    stopLevelMeter();
-  }, [stopLevelMeter]);
+  const { listenState, start, stop } = useMicTranscription({
+    language,
+    model: whisperModel,
+    selectedMic,
+    micBarRef,
+    getStream,
+    silenceDurationMs: 300,
+    onPartial,
+    onFinal,
+    onError: useCallback(() => {}, []),
+  });
 
   const startListening = useCallback(async () => {
-    setListenState("starting");
     setPartial("");
+    await start();
+  }, [start]);
 
-    const constraints = selectedMic
-      ? { audio: { deviceId: { exact: selectedMic } } }
-      : { audio: true };
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
-    streamRef.current = stream;
-    startLevelMeter(stream);
-
-    const wsProto = location.protocol === "https:" ? "wss:" : "ws:";
-    const ws = new WebSocket(`${wsProto}//${location.host}/api/transcribe`);
-    wsRef.current = ws;
-
-    ws.onopen = () => {
-      ws.send(JSON.stringify({ type: "start", language, model: whisperModel }));
-    };
-
-    ws.onmessage = (e) => {
-      const msg = JSON.parse(e.data);
-      if (msg.type === "ready") {
-        setListenState("listening");
-        const recorder = new MediaRecorder(stream, { mimeType: "audio/webm;codecs=opus" });
-        recorderRef.current = recorder;
-        recorder.ondataavailable = (ev) => {
-          if (ev.data.size > 0 && ws.readyState === WebSocket.OPEN) ws.send(ev.data);
-        };
-        recorder.start(1000);
-      } else if (msg.type === "transcript") {
-        setPartial(msg.text);
-        if (msg.is_final) {
-          setTranscript(prev => {
-            const sep = prev ? (prev.trimEnd().endsWith(".") ? "\n" : " ") : "";
-            return prev + sep + msg.text;
-          });
-          setPartial("");
-          setListenState("finished");
-          ws.close();
-        }
-      } else if (msg.type === "error") {
-        console.error("Transcription error:", msg.message);
-        cleanup();
-        setListenState("idle");
-      }
-    };
-
-    ws.onerror = () => { cleanup(); setListenState("idle"); };
-    ws.onclose = () => { cleanup(); };
-  }, [language, whisperModel, startLevelMeter, cleanup, selectedMic]);
-
-  const stopListening = useCallback(() => {
-    const ws = wsRef.current;
-    const recorder = recorderRef.current;
-
-    stopLevelMeter();
-    streamRef.current?.getTracks().forEach(t => t.stop());
-    streamRef.current = null;
-    recorderRef.current = null;
-
-    const sendStop = () => {
-      if (ws && ws.readyState === WebSocket.OPEN)
-        ws.send(JSON.stringify({ type: "stop" }));
-    };
-    if (recorder && recorder.state === "recording") {
-      recorder.onstop = sendStop;
-      recorder.stop();
-    } else {
-      sendStop();
-    }
-
-    setListenState("processing");
-  }, [stopLevelMeter]);
-
-  // Scroll to bottom of textarea when transcript grows
+  // Scroll to bottom of transcript area as text grows
   useEffect(() => {
     const el = textAreaRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [transcript, partial]);
-
-  // Hot-swap mic when selection changes during listening
-  useEffect(() => {
-    if (listenState !== "listening" || !selectedMic) return;
-    const ws = wsRef.current;
-    if (!ws || ws.readyState !== WebSocket.OPEN) return;
-
-    (async () => {
-      cleanup();
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { deviceId: { exact: selectedMic } },
-      });
-      streamRef.current = stream;
-      startLevelMeter(stream);
-      const recorder = new MediaRecorder(stream, { mimeType: "audio/webm;codecs=opus" });
-      recorderRef.current = recorder;
-      recorder.ondataavailable = (ev) => {
-        if (ev.data.size > 0 && ws.readyState === WebSocket.OPEN) ws.send(ev.data);
-      };
-      recorder.start(1000);
-    })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedMic]);
 
   // Timer: accumulates while actively listening, resets with CLEAR
   useEffect(() => {
@@ -323,7 +184,7 @@ export default function FreeSpeech() {
           </button>
         ) : (
           <button
-            onClick={listenState === "listening" ? stopListening : undefined}
+            onClick={listenState === "listening" ? stop : undefined}
             style={{
               ...btnSmall,
               background: `${listenColor}22`,

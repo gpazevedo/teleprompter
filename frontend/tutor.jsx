@@ -1,16 +1,16 @@
 import React, { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { parseSpeech } from "./speechUtils.js";
 import { diffWords } from "./diffUtils.js";
-import {
-  C, btnSmall, ScanLines, Vignette, FilePicker, playTts,
-  useAudioDevices, DeviceSelect, AudioLevelMeter,
-} from "./shared.jsx";
+import { C, btnSmall } from "./lib/theme.js";
+import { ScanLines, Vignette, DeviceSelect, AudioLevelMeter } from "./lib/ui.jsx";
+import { playTts, useAudioDevices, getAudioStream } from "./lib/audio.js";
+import { FilePicker } from "./lib/FilePicker.jsx";
+import { useMicTranscription } from "./transcription.js";
 
 const WHISPER_MODELS = ["tiny", "base", "small", "medium", "large-v3"];
 const FONT_MIN = 12;
 const FONT_MAX = 28;
 const FONT_STEP = 2;
-const SILENCE_THRESHOLD = 0.04;
 
 // Map language code → valid edge-tts neural voice
 const LANG_VOICES = {
@@ -39,24 +39,18 @@ export default function Tutor() {
   const [recognizedText, setRecognizedText] = useState("");
   const [language, setLanguage]         = useState("en");
   const [whisperModel, setWhisperModel] = useState("small");
-  const [listenState, setListenState]   = useState("idle"); // idle | starting | listening | processing | finished
   const [ttsPlaying, setTtsPlaying]     = useState(false);
   const [fontSize, setFontSize]         = useState(18);
   const [elapsed, setElapsed]           = useState(0);
-  const [leftPct, setLeftPct]           = useState(58); // vertical split %
-  const [topPct, setTopPct]             = useState(50); // horizontal split within right %
+  const [leftPct, setLeftPct]           = useState(58);
+  const [topPct, setTopPct]             = useState(50);
 
   const { audioInputs, audioOutputs, selectedMic, setSelectedMic, selectedOutput, setSelectedOutput } = useAudioDevices();
 
-  const mainRef = useRef(null);   // ref to the main two-column container
-  const rightRef = useRef(null);  // ref to the right column container
-  const wsRef = useRef(null);
-  const recorderRef = useRef(null);
-  const streamRef = useRef(null);
+  const mainRef     = useRef(null);
+  const rightRef    = useRef(null);
   const ttsAbortRef = useRef(null);
-  const analyserRef = useRef(null);
-  const levelRafRef = useRef(null);
-  const micBarRef = useRef(null); // direct DOM ref for mic level bar
+  const micBarRef   = useRef(null);
   const intervalRef = useRef(null);
 
   // File loading
@@ -80,175 +74,25 @@ export default function Tutor() {
     setUserText(plainText);
   };
 
-  const startLevelMeter = useCallback((stream, silenceDurationMs = 300) => {
-    const ctx = new AudioContext();
-    const source = ctx.createMediaStreamSource(stream);
-    const analyser = ctx.createAnalyser();
-    analyser.fftSize = 256;
-    source.connect(analyser);
-    analyserRef.current = { ctx, analyser, silenceStart: null, pauseSent: false };
+  const getStream = useCallback(() => getAudioStream(selectedMic), [selectedMic]);
 
-    const data = new Uint8Array(analyser.frequencyBinCount);
-    const tick = () => {
-      analyser.getByteFrequencyData(data);
-      const avg = data.reduce((a, b) => a + b, 0) / data.length;
-      const level = avg / 128;
+  const { listenState, start, stop } = useMicTranscription({
+    language,
+    model: whisperModel,
+    selectedMic,
+    micBarRef,
+    getStream,
+    silenceDurationMs: 300,
+    onPartial: useCallback((text) => setRecognizedText(text), []),
+    onFinal:   useCallback((text) => setRecognizedText(text), []),
+    onError:   useCallback(() => {}, []),
+  });
 
-      // Update mic bar directly — no React state, no re-renders
-      if (micBarRef.current) {
-        micBarRef.current.style.width = `${Math.min(100, level * 100)}%`;
-        micBarRef.current.style.background = level > 0.7
-          ? "linear-gradient(to right, #22cc66, #ff4422)"
-          : level > 0.4
-            ? "linear-gradient(to right, #22cc66, #ffaa22)"
-            : "#22cc66";
-        micBarRef.current.style.boxShadow = level > 0.3 ? "0 0 6px rgba(34,204,102,0.4)" : "none";
-      }
-
-      // Silence detection: signal backend at natural pauses
-      const a = analyserRef.current;
-      if (a) {
-        const now = performance.now();
-        if (level < SILENCE_THRESHOLD) {
-          if (a.silenceStart === null) a.silenceStart = now;
-          if (!a.pauseSent && now - a.silenceStart >= silenceDurationMs) {
-            a.pauseSent = true;
-            const ws = wsRef.current;
-            if (ws && ws.readyState === WebSocket.OPEN) {
-              ws.send(JSON.stringify({ type: "pause_detected" }));
-            }
-          }
-        } else {
-          a.silenceStart = null;
-          a.pauseSent = false;
-        }
-      }
-
-      levelRafRef.current = requestAnimationFrame(tick);
-    };
-    levelRafRef.current = requestAnimationFrame(tick);
-  }, []);
-
-  const stopLevelMeter = useCallback(() => {
-    if (levelRafRef.current) cancelAnimationFrame(levelRafRef.current);
-    levelRafRef.current = null;
-    analyserRef.current?.ctx.close();
-    analyserRef.current = null;
-    if (micBarRef.current) micBarRef.current.style.width = "0%";
-  }, []);
-
-  // Stop recorder + stream + level meter
-  const cleanup = useCallback(() => {
-    if (recorderRef.current?.state === "recording") recorderRef.current.stop();
-    recorderRef.current = null;
-    streamRef.current?.getTracks().forEach(t => t.stop());
-    streamRef.current = null;
-    stopLevelMeter();
-  }, [stopLevelMeter]);
-
-  // Start mic + WebSocket
   const startListening = useCallback(async () => {
-    setListenState("starting");
     setRecognizedText("");
     setElapsed(0);
-
-    const constraints = selectedMic
-      ? { audio: { deviceId: { exact: selectedMic } } }
-      : { audio: true };
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
-    streamRef.current = stream;
-
-    startLevelMeter(stream);
-
-    const wsProto = location.protocol === "https:" ? "wss:" : "ws:";
-    const ws = new WebSocket(`${wsProto}//${location.host}/api/transcribe`);
-    wsRef.current = ws;
-
-    ws.onopen = () => {
-      ws.send(JSON.stringify({ type: "start", language, model: whisperModel }));
-    };
-
-    ws.onmessage = (e) => {
-      const msg = JSON.parse(e.data);
-      if (msg.type === "ready") {
-        setListenState("listening");
-        const recorder = new MediaRecorder(stream, { mimeType: "audio/webm;codecs=opus" });
-        recorderRef.current = recorder;
-        recorder.ondataavailable = (ev) => {
-          if (ev.data.size > 0 && ws.readyState === WebSocket.OPEN) {
-            ws.send(ev.data);
-          }
-        };
-        recorder.start(1000);
-      } else if (msg.type === "transcript") {
-        setRecognizedText(msg.text);
-        if (msg.is_final) {
-          setListenState("finished");
-          ws.close();
-        }
-      } else if (msg.type === "error") {
-        console.error("Transcription error:", msg.message);
-        cleanup();
-        setListenState("idle");
-      }
-    };
-
-    ws.onerror = () => { cleanup(); setListenState("idle"); };
-    ws.onclose = () => { cleanup(); };
-  }, [language, whisperModel, startLevelMeter, cleanup, selectedMic]);
-
-  const stopListening = useCallback(() => {
-    const ws = wsRef.current;
-    const recorder = recorderRef.current;
-
-    // Stop level meter and stream immediately
-    stopLevelMeter();
-    streamRef.current?.getTracks().forEach(t => t.stop());
-    streamRef.current = null;
-    recorderRef.current = null;
-
-    // Send "stop" only after recorder flushes its last chunk via onstop,
-    // ensuring the backend receives all audio before it starts final transcription.
-    const sendStop = () => {
-      if (ws && ws.readyState === WebSocket.OPEN)
-        ws.send(JSON.stringify({ type: "stop" }));
-    };
-    if (recorder && recorder.state === "recording") {
-      recorder.onstop = sendStop;
-      recorder.stop();
-    } else {
-      sendStop();
-    }
-
-    setListenState("processing");
-  }, [stopLevelMeter]);
-
-  // Hot-swap mic when selection changes during listening
-  useEffect(() => {
-    if (listenState !== "listening" || !selectedMic) return;
-    const ws = wsRef.current;
-    if (!ws || ws.readyState !== WebSocket.OPEN) return;
-
-    (async () => {
-      cleanup();
-
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { deviceId: { exact: selectedMic } },
-      });
-      streamRef.current = stream;
-      startLevelMeter(stream);
-
-      const recorder = new MediaRecorder(stream, { mimeType: "audio/webm;codecs=opus" });
-      recorderRef.current = recorder;
-      recorder.ondataavailable = (ev) => {
-        if (ev.data.size > 0 && ws.readyState === WebSocket.OPEN) {
-          ws.send(ev.data);
-        }
-      };
-      recorder.start(1000);
-    })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedMic]);
+    await start();
+  }, [start]);
 
   // Play pronunciation via TTS
   const playPronunciation = useCallback(() => {
@@ -343,7 +187,6 @@ export default function Tutor() {
   const formatTime = (s) =>
     `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
-  // Show file picker if no speech loaded
   if (!speech.length) {
     return <FilePicker onFile={handleFile} onText={handleText} title="Load practice text" />;
   }
@@ -361,7 +204,7 @@ export default function Tutor() {
       <ScanLines />
       <Vignette style={{ zIndex: 2 }} />
 
-      {/* Top bar: language, model, mic, output selectors */}
+      {/* Top bar */}
       <div style={{
         display: "flex", gap: 14, padding: "10px 20px",
         borderBottom: `1px solid ${C.divider}`,
@@ -393,7 +236,6 @@ export default function Tutor() {
           options={audioOutputs.map(d => ({ value: d.deviceId, label: d.label }))}
           maxWidth={200} />
 
-        {/* File label */}
         <label style={{
           cursor: "pointer", color: C.textFaint, fontSize: 11,
           letterSpacing: 1, textDecoration: "underline dotted", marginLeft: "auto",
@@ -564,7 +406,6 @@ export default function Tutor() {
 
         <div style={{ width: 1, height: 24, background: C.divider }} />
 
-        {/* Start / Stop listening */}
         {listenState === "idle" || listenState === "finished" ? (
           <button onClick={startListening} style={{
             ...btnSmall,
@@ -577,7 +418,7 @@ export default function Tutor() {
           </button>
         ) : (
           <button
-            onClick={listenState === "listening" ? stopListening : undefined}
+            onClick={listenState === "listening" ? stop : undefined}
             style={{
               ...btnSmall,
               background: `${listenColor}22`,
@@ -594,7 +435,6 @@ export default function Tutor() {
           </button>
         )}
 
-        {/* Audio level meter — visible when listening */}
         {listenState === "listening" && <AudioLevelMeter barRef={micBarRef} />}
 
         <div style={{ width: 1, height: 24, background: C.divider }} />

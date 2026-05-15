@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import Teleprompter from "./teleprompter.jsx";
 import Tutor from "./tutor.jsx";
 import FreeSpeech from "./freespeech.jsx";
-import { C } from "./shared.jsx";
+import { C } from "./lib/theme.js";
 
 const TABS = [
   { id: "speaker",     label: "SPEAKER" },
