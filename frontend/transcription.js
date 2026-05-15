@@ -218,5 +218,42 @@ export function useMicTranscription({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMic]);
 
+  // Unmount cleanup — tear down active session
+  useEffect(() => {
+    return () => {
+      const ws = wsRef.current;
+      const recorder = recorderRef.current;
+
+      // Close WebSocket
+      if (ws?.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: WS_MSG.STOP }));
+        ws.close();
+      }
+      ws?.removeEventListener?.("open", ws.onopen);
+      ws?.removeEventListener?.("message", ws.onmessage);
+      ws?.removeEventListener?.("error", ws.onerror);
+      ws?.removeEventListener?.("close", ws.onclose);
+      wsRef.current = null;
+
+      // Stop recorder
+      if (recorder?.state === "recording") recorder.stop();
+      recorderRef.current = null;
+
+      // Release stream and stop level meter
+      releaseStream();
+      stopLevelMeter();
+
+      // Cancel pending animation frame and close audio context
+      if (levelRafRef.current) cancelAnimationFrame(levelRafRef.current);
+      levelRafRef.current = null;
+      if (analyserRef.current?.ctx) analyserRef.current.ctx.close();
+      analyserRef.current = null;
+
+      // Reset stream refs
+      streamRef.current = null;
+      stopStreamRef.current = null;
+    };
+  }, [releaseStream, stopLevelMeter]);
+
   return { listenState, start, stop };
 }

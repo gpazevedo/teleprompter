@@ -1,5 +1,6 @@
 import logging
 import subprocess
+import threading
 
 import imageio_ffmpeg
 import numpy as np
@@ -10,11 +11,15 @@ FFMPEG = imageio_ffmpeg.get_ffmpeg_exe()
 log = logging.getLogger("uvicorn")
 
 _whisper_models: dict[str, WhisperModel] = {}
+_whisper_models_lock = threading.Lock()
 
 
 def get_whisper_model(name: str) -> WhisperModel:
     if name not in _whisper_models:
-        _whisper_models[name] = WhisperModel(name, compute_type="int8")
+        model = WhisperModel(name, compute_type="int8")
+        with _whisper_models_lock:
+            if name not in _whisper_models:
+                _whisper_models[name] = model
     return _whisper_models[name]
 
 

@@ -55,7 +55,7 @@ Streams audio from the browser, returns partial and final transcriptions.
 
 | Frame | Description |
 | --- | --- |
-| `{"type":"start","language":"en","model":"small","vad":true}` | Load Whisper model, begin session |
+| `{"type":"start","language":"en","model":"small","vad":true}` | Load Whisper model, begin session. `vad` defaults to `true` if omitted (VAD filter enabled). |
 | Binary | Raw `audio/webm;codecs=opus` chunks (1-second intervals from `MediaRecorder`) |
 | `{"type":"pause_detected"}` | Silence detected by the frontend — trigger a partial transcription |
 | `{"type":"stop"}` | End of recording — trigger final transcription and close |

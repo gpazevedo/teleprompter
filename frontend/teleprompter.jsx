@@ -346,9 +346,12 @@ export default function Teleprompter() {
           if (!line.trim()) continue;
           const { audio_b64, boundaries, chunk_size, chunk: chunkIdx } = JSON.parse(line);
           if (itemChunks === null) {
+            const safeChunkSize = (Number.isInteger(chunk_size) && chunk_size > 0)
+              ? chunk_size
+              : speakableItems.length;
             itemChunks = [];
-            for (let i = 0; i < speakableItems.length; i += chunk_size) {
-              itemChunks.push(speakableItems.slice(i, i + chunk_size));
+            for (let i = 0; i < speakableItems.length; i += safeChunkSize) {
+              itemChunks.push(speakableItems.slice(i, i + safeChunkSize));
             }
           }
           const blobUrl = b64ToBlob(audio_b64);
