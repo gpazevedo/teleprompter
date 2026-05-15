@@ -7,6 +7,7 @@ import numpy as np
 from faster_whisper import WhisperModel
 
 FFMPEG = imageio_ffmpeg.get_ffmpeg_exe()
+FFMPEG_TIMEOUT = 30
 
 log = logging.getLogger("uvicorn")
 
@@ -25,16 +26,22 @@ def get_whisper_model(name: str) -> WhisperModel:
 
 def decode_webm_to_pcm(audio_bytes: bytes) -> np.ndarray:
     """Decode webm/opus audio to 16kHz float32 PCM via ffmpeg."""
-    proc = subprocess.run(
-        [
-            FFMPEG, "-i", "pipe:0",
-            "-f", "f32le", "-acodec", "pcm_f32le",
-            "-ar", "16000", "-ac", "1",
-            "pipe:1",
-        ],
-        input=audio_bytes,
-        capture_output=True,
-    )
+    try:
+        proc = subprocess.run(
+            [
+                FFMPEG, "-i", "pipe:0",
+                "-f", "f32le", "-acodec", "pcm_f32le",
+                "-ar", "16000", "-ac", "1",
+                "pipe:1",
+            ],
+            input=audio_bytes,
+            capture_output=True,
+            timeout=FFMPEG_TIMEOUT,
+        )
+    except subprocess.TimeoutExpired as e:
+        raise RuntimeError(
+            f"ffmpeg timed out after {FFMPEG_TIMEOUT}s: {e}"
+        )
     if proc.returncode != 0:
         raise RuntimeError(f"ffmpeg failed: {proc.stderr.decode()}")
     return np.frombuffer(proc.stdout, dtype=np.float32)
