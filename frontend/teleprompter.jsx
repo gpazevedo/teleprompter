@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { parseSpeech, buildItemTimings } from "./speechUtils.js";
+import { buildItemTimings } from "./speechUtils.js";
 import { C, btnSmall } from "./lib/theme.js";
 import { ScanLines, Vignette, DeviceSelect } from "./lib/ui.jsx";
 import { b64ToBlob, useAudioDevices } from "./lib/audio.js";
 import { FilePicker } from "./lib/FilePicker.jsx";
+import { LibraryPanel } from "./lib/speechLibrary.jsx";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -20,14 +21,9 @@ const incFontSize = s => Math.min(FONT_MAX, s + FONT_STEP);
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function Teleprompter() {
-  // Speech library — multiple speeches, one active at a time
-  const [speeches, setSpeeches]   = useState([]);
-  const [activeId, setActiveId]   = useState(null);
-  const [adding, setAdding]       = useState(false);
-
-  const activeSpeech = speeches.find(s => s.id === activeId) ?? speeches[0];
-  const speech = activeSpeech?.items ?? [];
+export default function Teleprompter({ library }) {
+  const { speeches, activeId, adding, activeSpeech, speech,
+          addSpeech, selectSpeech, openAdd, cancelAdd, removeActive } = library;
 
   // Scroll / playback
   const [playing, setPlaying]     = useState(false);
@@ -459,43 +455,16 @@ export default function Teleprompter() {
     if (scrollRef.current) scrollRef.current.scrollTop = 0;
   }, [stopTts]);
 
-  // ── Speech library handlers ───────────────────────────────────────────────
+  // ── Reset when the shared library selection changes ──────────────────────
 
-  const newId = () =>
-    crypto.randomUUID?.() ?? `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
-
-  const addSpeech = useCallback(({ title, text }) => {
-    const items = parseSpeech(text);
-    if (!items.length) return;
-    const id = newId();
-    setSpeeches(prev => [...prev, { id, title, items }]);
-    setActiveId(id);
-    setAdding(false);
-    paraElemsRef.current = [];
-    reset();
-  }, [reset]);
-
-  const selectSpeech = useCallback((id) => {
-    if (id === activeId) return;
-    setActiveId(id);
+  useEffect(() => {
     paraElemsRef.current = [];
     reset();
   }, [activeId, reset]);
 
-  const openAdd = useCallback(() => {
-    reset();
-    setAdding(true);
-  }, [reset]);
-
-  const removeActive = useCallback(() => {
-    if (!activeId) return;
-    if (!window.confirm(`Remove "${activeSpeech?.title ?? "this text"}"?`)) return;
-    const remaining = speeches.filter(s => s.id !== activeId);
-    setSpeeches(remaining);
-    setActiveId(remaining[0]?.id ?? null); // keep the first remaining entry selected
-    paraElemsRef.current = [];
-    reset();
-  }, [activeId, activeSpeech, speeches, reset]);
+  useEffect(() => {
+    if (adding) reset(); // stop in-flight TTS before the add picker replaces the view
+  }, [adding, reset]);
 
   // ── Keyboard ─────────────────────────────────────────────────────────────
 
@@ -527,7 +496,7 @@ export default function Teleprompter() {
     return (
       <FilePicker
         onAdd={addSpeech}
-        onCancel={adding ? () => setAdding(false) : undefined}
+        onCancel={adding ? cancelAdd : undefined}
         title={adding ? "Add a text" : undefined}
         submitLabel="ADD TO LIBRARY →"
       />
@@ -671,72 +640,13 @@ export default function Teleprompter() {
         </div>
 
         {/* ── Library panel ── */}
-        <div style={{
-          width: 210, flexShrink: 0,
-          background: C.bgControls,
-          borderLeft: `1px solid ${C.divider}`,
-          display: "flex", flexDirection: "column",
-          zIndex: 2,
-        }}>
-          <div style={{
-            padding: "12px 14px 10px",
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            borderBottom: `1px solid ${C.divider}`,
-          }}>
-            <span style={{
-              fontFamily: "'Courier Prime', 'Courier New', monospace",
-              fontSize: 11, letterSpacing: 3, color: C.section, fontWeight: 700,
-            }}>
-              TEXTS
-            </span>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <button
-                onClick={removeActive}
-                title="Remove selected text"
-                style={{
-                  ...btnSmall,
-                  padding: "4px 9px", fontSize: 11, fontWeight: 700,
-                  color: C.textFaint,
-                }}
-              >
-                ✕
-              </button>
-              <button onClick={openAdd} style={{
-                ...btnSmall,
-                padding: "4px 12px", fontSize: 11, fontWeight: 700, letterSpacing: 1,
-                color: C.text,
-              }}>
-                + ADD
-              </button>
-            </div>
-          </div>
-          <div style={{ flex: 1, overflowY: "auto", padding: 10 }}>
-            {speeches.map(s => {
-              const active = s.id === activeId;
-              return (
-                <button
-                  key={s.id}
-                  onClick={() => selectSpeech(s.id)}
-                  title={s.title}
-                  style={{
-                    display: "block", width: "100%", textAlign: "left",
-                    padding: "10px 12px", marginBottom: 6,
-                    borderRadius: 5,
-                    background: active ? C.amberFaint : "rgba(255,255,255,0.03)",
-                    color: active ? C.amber : C.textFaint,
-                    border: `1px solid ${active ? C.amberDim : "transparent"}`,
-                    fontFamily: "'EB Garamond', Georgia, serif",
-                    fontSize: 16, lineHeight: 1.3, letterSpacing: 0.4,
-                    cursor: "pointer", transition: "all 0.15s",
-                    overflowWrap: "anywhere",
-                  }}
-                >
-                  {s.title}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        <LibraryPanel
+          speeches={speeches}
+          activeId={activeId}
+          onSelect={selectSpeech}
+          onRemove={removeActive}
+          onAdd={openAdd}
+        />
 
       </div>
 
