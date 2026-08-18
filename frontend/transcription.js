@@ -18,6 +18,7 @@ export function useMicTranscription({
   micBarRef,           // ref to DOM level-bar element for direct updates
   getStream,
   silenceDurationMs = 300,
+  micGain = 1,         // mic gain multiplier (1 = unity)
   vad = true,
   onPartial,
   onFinal,
@@ -32,8 +33,10 @@ export function useMicTranscription({
   const analyserRef     = useRef(null);
   const levelRafRef     = useRef(null);
   const listenStateRef  = useRef("idle");
+  const micGainRef      = useRef(micGain);
 
   useEffect(() => { listenStateRef.current = listenState; }, [listenState]);
+  useEffect(() => { micGainRef.current = micGain; }, [micGain]);
 
   const stopLevelMeter = useCallback(() => {
     if (levelRafRef.current) cancelAnimationFrame(levelRafRef.current);
@@ -46,10 +49,13 @@ export function useMicTranscription({
   const startLevelMeter = useCallback((stream) => {
     const ctx = new AudioContext();
     const source = ctx.createMediaStreamSource(stream);
+    const gain = ctx.createGain();
+    gain.gain.value = micGainRef.current;
     const analyser = ctx.createAnalyser();
     analyser.fftSize = 256;
-    source.connect(analyser);
-    analyserRef.current = { ctx, analyser };
+    source.connect(gain);
+    gain.connect(analyser);
+    analyserRef.current = { ctx, analyser, gain };
     let silenceStart = null;
     let pauseSent = false;
 
@@ -87,6 +93,12 @@ export function useMicTranscription({
     };
     levelRafRef.current = requestAnimationFrame(tick);
   }, [micBarRef, silenceDurationMs]);
+
+  // Live-update GainNode when micGain changes during listening
+  useEffect(() => {
+    const gain = analyserRef.current?.gain;
+    if (gain) gain.gain.value = micGain;
+  }, [micGain]);
 
   const attachRecorder = useCallback((stream, ws) => {
     const recorder = new MediaRecorder(stream, { mimeType: "audio/webm;codecs=opus" });

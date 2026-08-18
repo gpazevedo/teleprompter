@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1560 850" font-family="monospace" font-size="12">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1560 858" font-family="monospace" font-size="12">
   <defs>
     <style>
       .title      { font-size: 18px; font-weight: bold; fill: #ffaa22; }
@@ -53,15 +53,15 @@
   </defs>
 
   <!-- Background -->
-  <rect width="1560" height="850" fill="#060608"/>
+  <rect width="1560" height="858" fill="#060608"/>
 
   <!-- Title -->
   <text x="780" y="36" text-anchor="middle" class="title" filter="url(#glow)">TELEPROMPTER — FUNCTIONAL ARCHITECTURE</text>
   <line x1="60" y1="48" x2="1500" y2="48" stroke="#ffaa22" stroke-width="0.5" opacity="0.4"/>
 
-  <!-- ══════════════ BROWSER (x=60→860, y=60→780) ══════════════ -->
-  <rect x="60" y="60" width="800" height="720" rx="6" fill="#0e0a02"/>
-  <rect x="60" y="60" width="800" height="720" rx="6" fill="none" stroke="#ffaa22" stroke-width="1.5"/>
+  <!-- ══════════════ BROWSER (x=60→860, y=60→798) ══════════════ -->
+  <rect x="60" y="60" width="800" height="738" rx="6" fill="#0e0a02"/>
+  <rect x="60" y="60" width="800" height="738" rx="6" fill="none" stroke="#ffaa22" stroke-width="1.5"/>
   <text x="460" y="82" text-anchor="middle" class="lbl-browser">BROWSER</text>
 
   <!-- Tab bar (inner x=80..800, width=720) -->
@@ -121,10 +121,10 @@
   <text x="336" y="492" class="sub-tutor">Diff display + Chronometer</text>
   <text x="336" y="508" class="det-tutor">  diffUtils.js — LCS word diff</text>
   <text x="336" y="524" class="det-tutor">  match | extra | missing tokens</text>
-  <text x="336" y="540" class="det-tutor">  elapsed timer (rAF while listening)</text>
+  <text x="336" y="540" class="det-tutor">  elapsed timer (setInterval while listening)</text>
   <text x="336" y="568" class="sub-tutor">Pronunciation TTS</text>
   <text x="336" y="584" class="det-tutor">  LANG_VOICES map → valid voice</text>
-  <text x="336" y="600" class="det-tutor">  playTts() from shared.jsx</text>
+  <text x="336" y="600" class="det-tutor">  playTts() from lib/audio.js</text>
   <text x="336" y="616" class="det-tutor">  abort() on re-play / stop</text>
 
   <!-- ── FREE SPEECH panel (x=560, y=148, w=240, h=500) ── -->
@@ -151,138 +151,142 @@
   <text x="576" y="508" class="det-fsp">  Accumulates across pauses</text>
   <text x="576" y="524" class="det-fsp">  Resets with CLEAR</text>
 
-  <!-- shared.jsx bar (y=660→726) -->
-  <rect x="80" y="660" width="720" height="66" rx="3" fill="#011210"/>
-  <rect x="80" y="660" width="720" height="66" rx="3" fill="none" stroke="#2a8877" stroke-width="1"/>
-  <text x="440" y="677" text-anchor="middle" class="lbl-shared">shared.jsx</text>
-  <text x="440" y="694" text-anchor="middle" class="det-shared">b64ToBlob · playTts · useAudioDevices · DeviceSelect · AudioLevelMeter</text>
-  <text x="440" y="710" text-anchor="middle" class="det-shared">C (palette) · btnSmall · ScanLines · Vignette · FilePicker</text>
+  <!-- shared utilities bar (y=660→752) -->
+  <rect x="80" y="660" width="720" height="84" rx="3" fill="#011210"/>
+  <rect x="80" y="660" width="720" height="84" rx="3" fill="none" stroke="#2a8877" stroke-width="1"/>
+  <text x="440" y="676" text-anchor="middle" class="lbl-shared">shared utilities</text>
+  <text x="440" y="693" text-anchor="middle" class="det-shared">lib/audio.js: b64ToBlob · playTts · useAudioDevices · getAudioStream</text>
+  <text x="440" y="709" text-anchor="middle" class="det-shared">lib/ui.jsx: DeviceSelect · AudioLevelMeter · ScanLines · Vignette</text>
+  <text x="440" y="725" text-anchor="middle" class="det-shared">lib/theme.js: C (palette) · btnSmall  |  lib/FilePicker.jsx: FilePicker</text>
+  <text x="440" y="741" text-anchor="middle" class="det-shared">transcription.js: useMicTranscription (WS + MediaRecorder + silence detector)</text>
 
-  <!-- Vite proxy note (y=734→768) -->
-  <rect x="80" y="734" width="720" height="34" rx="3" fill="#080a04" stroke="#556633" stroke-width="1" stroke-dasharray="3,3"/>
-  <text x="440" y="747" text-anchor="middle" class="det-proxy">DEV: Vite proxy /api → localhost:8000 (HTTP + WebSocket)</text>
-  <text x="440" y="761" text-anchor="middle" class="det-proxy">PROD: FastAPI serves built frontend from /static (SPA fallback)</text>
+  <!-- Vite proxy note (y=758→792) -->
+  <rect x="80" y="758" width="720" height="34" rx="3" fill="#080a04" stroke="#556633" stroke-width="1" stroke-dasharray="3,3"/>
+  <text x="440" y="771" text-anchor="middle" class="det-proxy">DEV: Vite proxy /api → localhost:8000 (HTTP + WebSocket)</text>
+  <text x="440" y="785" text-anchor="middle" class="det-proxy">PROD: FastAPI serves built frontend from /static (SPA fallback)</text>
 
-  <!-- ══════════════ BACKEND (x=900→1260, y=60→650) ══════════════ -->
-  <rect x="900" y="60" width="360" height="590" rx="6" fill="#03080f"/>
-  <rect x="900" y="60" width="360" height="590" rx="6" fill="none" stroke="#3366cc" stroke-width="1.5"/>
+  <!-- ══════════════ BACKEND (x=900→1260, y=60→686) ══════════════ -->
+  <rect x="900" y="60" width="360" height="626" rx="6" fill="#03080f"/>
+  <rect x="900" y="60" width="360" height="626" rx="6" fill="none" stroke="#3366cc" stroke-width="1.5"/>
   <text x="1080" y="82" text-anchor="middle" class="lbl-backend">BACKEND  (FastAPI / uvicorn)</text>
 
-  <!-- GET /api/voices (y=94→176) -->
-  <rect x="920" y="94" width="320" height="82" rx="3" fill="#021208"/>
-  <rect x="920" y="94" width="320" height="82" rx="3" fill="none" stroke="#339966" stroke-width="1"/>
+  <!-- GET /api/voices (y=94→192) -->
+  <rect x="920" y="94" width="320" height="98" rx="3" fill="#021208"/>
+  <rect x="920" y="94" width="320" height="98" rx="3" fill="none" stroke="#339966" stroke-width="1"/>
   <text x="1080" y="114" text-anchor="middle" class="lbl-get">GET /api/voices</text>
   <text x="936" y="133" class="det-get">edge_tts.list_voices()</text>
   <text x="936" y="149" class="det-get">  → [{name, locale, gender}]</text>
-  <text x="936" y="165" class="det-get">Called once on mount, populates voice selector</text>
+  <text x="936" y="165" class="det-get">Called once on mount,</text>
+  <text x="936" y="181" class="det-get">populates voice selector</text>
 
-  <!-- POST /api/speak (y=190→318) -->
-  <rect x="920" y="190" width="320" height="128" rx="3" fill="#100800"/>
-  <rect x="920" y="190" width="320" height="128" rx="3" fill="none" stroke="#cc6622" stroke-width="1"/>
-  <text x="1080" y="210" text-anchor="middle" class="lbl-post">POST /api/speak  (NDJSON stream)</text>
-  <text x="936" y="228" class="det-post">Splits text into 3-para chunks</text>
-  <text x="936" y="244" class="det-post">Per chunk: edge_tts.Communicate().stream()</text>
-  <text x="936" y="260" class="det-post">  audio bytes → base64</text>
-  <text x="936" y="276" class="det-post">  SentenceBoundary → offset_ms</text>
-  <text x="936" y="292" class="det-post">Yields {audio_b64, boundaries, chunk, is_last}</text>
-  <text x="936" y="307" class="det-post">AbortController cancels in-flight request</text>
+  <!-- POST /api/speak (y=204→352) -->
+  <rect x="920" y="204" width="320" height="148" rx="3" fill="#100800"/>
+  <rect x="920" y="204" width="320" height="148" rx="3" fill="none" stroke="#cc6622" stroke-width="1"/>
+  <text x="1080" y="224" text-anchor="middle" class="lbl-post">POST /api/speak  (NDJSON stream)</text>
+  <text x="936" y="242" class="det-post">Splits text into 3-para chunks</text>
+  <text x="936" y="258" class="det-post">Per chunk: edge_tts.Communicate().stream()</text>
+  <text x="936" y="274" class="det-post">  audio bytes → base64</text>
+  <text x="936" y="290" class="det-post">  SentenceBoundary → offset_ms</text>
+  <text x="936" y="306" class="det-post">Yields {audio_b64, boundaries,</text>
+  <text x="936" y="322" class="det-post">  chunk_size, chunk, is_last}</text>
+  <text x="936" y="338" class="det-post">AbortController cancels in-flight request</text>
 
-  <!-- WS /api/transcribe (y=332→542) -->
-  <rect x="920" y="332" width="320" height="210" rx="3" fill="#020e12"/>
-  <rect x="920" y="332" width="320" height="210" rx="3" fill="none" stroke="#1188aa" stroke-width="1"/>
-  <text x="1080" y="352" text-anchor="middle" class="lbl-ws">WS /api/transcribe</text>
-  <text x="936" y="372" class="sub-ws">Audio pipeline per transcription</text>
-  <text x="936" y="390" class="det-ws">  webm/opus bytes → ffmpeg subprocess</text>
-  <text x="936" y="407" class="det-ws">  pipe:0→pipe:1, f32le 16kHz mono</text>
-  <text x="936" y="424" class="det-ws">  numpy float32 → WhisperModel</text>
-  <text x="936" y="441" class="det-ws">  vad_filter=True, silence=300ms</text>
-  <text x="936" y="458" class="det-ws">  segments[] → joined text</text>
-  <text x="936" y="478" class="sub-ws">Concurrency</text>
-  <text x="936" y="496" class="det-ws">  asyncio.to_thread (CPU-bound)</text>
-  <text x="936" y="513" class="det-ws">  partial_task guard (no double-fire)</text>
-  <text x="936" y="530" class="det-ws">  stop → cancel partial → final</text>
+  <!-- WS /api/transcribe (y=364→574) -->
+  <rect x="920" y="364" width="320" height="210" rx="3" fill="#020e12"/>
+  <rect x="920" y="364" width="320" height="210" rx="3" fill="none" stroke="#1188aa" stroke-width="1"/>
+  <text x="1080" y="384" text-anchor="middle" class="lbl-ws">WS /api/transcribe</text>
+  <text x="936" y="404" class="sub-ws">Audio pipeline per transcription</text>
+  <text x="936" y="422" class="det-ws">  webm/opus bytes → ffmpeg subprocess</text>
+  <text x="936" y="439" class="det-ws">  pipe:0→pipe:1, f32le 16kHz mono</text>
+  <text x="936" y="456" class="det-ws">  numpy float32 → WhisperModel</text>
+  <text x="936" y="473" class="det-ws">  vad_filter=True, silence=300ms</text>
+  <text x="936" y="490" class="det-ws">  segments[] → joined text</text>
+  <text x="936" y="510" class="sub-ws">Concurrency</text>
+  <text x="936" y="528" class="det-ws">  asyncio.to_thread (CPU-bound)</text>
+  <text x="936" y="545" class="det-ws">  partial_task guard (no double-fire)</text>
+  <text x="936" y="562" class="det-ws">  stop → await partial → final (delta pcm only)</text>
 
-  <!-- WhisperModel cache (y=556→638) -->
-  <rect x="920" y="556" width="320" height="82" rx="3" fill="#08040f"/>
-  <rect x="920" y="556" width="320" height="82" rx="3" fill="none" stroke="#7744bb" stroke-width="1"/>
-  <text x="1080" y="576" text-anchor="middle" class="lbl-cache">WhisperModel cache</text>
-  <text x="936" y="594" class="det-cache">_whisper_models: dict[str, WhisperModel]</text>
-  <text x="936" y="610" class="det-cache">compute_type="int8" (quantized, CPU)</text>
-  <text x="936" y="626" class="det-cache">Shared across connections, process lifetime</text>
+  <!-- WhisperModel cache (y=588→670) -->
+  <rect x="920" y="588" width="320" height="82" rx="3" fill="#08040f"/>
+  <rect x="920" y="588" width="320" height="82" rx="3" fill="none" stroke="#7744bb" stroke-width="1"/>
+  <text x="1080" y="608" text-anchor="middle" class="lbl-cache">WhisperModel cache</text>
+  <text x="936" y="626" class="det-cache">_whisper_models: dict[str, WhisperModel]</text>
+  <text x="936" y="642" class="det-cache">compute_type="int8" (quantized, CPU)</text>
+  <text x="936" y="658" class="det-cache">Shared across connections, process lifetime</text>
 
-  <!-- ══════════════ EXTERNAL (x=1280→1530, y=60→650) ══════════════ -->
-  <rect x="1280" y="60" width="250" height="590" rx="6" fill="#07040e"/>
-  <rect x="1280" y="60" width="250" height="590" rx="6" fill="none" stroke="#6633aa" stroke-width="1" stroke-dasharray="5,4"/>
+  <!-- ══════════════ EXTERNAL (x=1280→1530, y=60→686) ══════════════ -->
+  <rect x="1280" y="60" width="250" height="626" rx="6" fill="#07040e"/>
+  <rect x="1280" y="60" width="250" height="626" rx="6" fill="none" stroke="#6633aa" stroke-width="1" stroke-dasharray="5,4"/>
   <text x="1405" y="82" text-anchor="middle" class="lbl-ext">EXTERNAL</text>
 
   <!-- Azure Neural TTS — aligned with POST /api/speak -->
-  <rect x="1296" y="190" width="218" height="128" rx="4" fill="#0f0208"/>
-  <rect x="1296" y="190" width="218" height="128" rx="4" fill="none" stroke="#993355" stroke-width="1"/>
-  <text x="1405" y="214" text-anchor="middle" class="lbl-azure">Azure Neural TTS</text>
-  <text x="1405" y="234" text-anchor="middle" class="det-ext">edge-tts (unofficial streaming API)</text>
-  <text x="1405" y="254" text-anchor="middle" class="det-ext">streams audio chunks +</text>
-  <text x="1405" y="272" text-anchor="middle" class="det-ext">SentenceBoundary events</text>
-  <text x="1405" y="292" text-anchor="middle" class="det-ext">over HTTPS</text>
+  <rect x="1296" y="204" width="218" height="148" rx="4" fill="#0f0208"/>
+  <rect x="1296" y="204" width="218" height="148" rx="4" fill="none" stroke="#993355" stroke-width="1"/>
+  <text x="1405" y="228" text-anchor="middle" class="lbl-azure">Azure Neural TTS</text>
+  <text x="1405" y="248" text-anchor="middle" class="det-ext">edge-tts (unofficial streaming API)</text>
+  <text x="1405" y="268" text-anchor="middle" class="det-ext">streams audio chunks +</text>
+  <text x="1405" y="288" text-anchor="middle" class="det-ext">SentenceBoundary events</text>
+  <text x="1405" y="308" text-anchor="middle" class="det-ext">over HTTPS</text>
 
   <!-- faster-whisper — aligned with WS /api/transcribe -->
-  <rect x="1296" y="332" width="218" height="210" rx="4" fill="#080310"/>
-  <rect x="1296" y="332" width="218" height="210" rx="4" fill="none" stroke="#6633aa" stroke-width="1"/>
-  <text x="1405" y="360" text-anchor="middle" class="lbl-fwhisp">faster-whisper</text>
-  <text x="1405" y="380" text-anchor="middle" class="det-ext">local editable install</text>
-  <text x="1405" y="404" text-anchor="middle" class="det-ext">CTranslate2 engine</text>
-  <text x="1405" y="422" text-anchor="middle" class="det-ext">int8 quantized, CPU</text>
-  <text x="1405" y="440" text-anchor="middle" class="det-ext">VAD filter built-in</text>
-  <text x="1405" y="464" text-anchor="middle" class="det-ext">model cached across</text>
-  <text x="1405" y="482" text-anchor="middle" class="det-ext">connections via</text>
-  <text x="1405" y="500" text-anchor="middle" class="det-ext">WhisperModel cache</text>
-  <text x="1405" y="524" text-anchor="middle" class="det-ext">OSS/faster-whisper</text>
+  <rect x="1296" y="364" width="218" height="210" rx="4" fill="#080310"/>
+  <rect x="1296" y="364" width="218" height="210" rx="4" fill="none" stroke="#6633aa" stroke-width="1"/>
+  <text x="1405" y="392" text-anchor="middle" class="lbl-fwhisp">faster-whisper</text>
+  <text x="1405" y="412" text-anchor="middle" class="det-ext">local editable install</text>
+  <text x="1405" y="436" text-anchor="middle" class="det-ext">CTranslate2 engine</text>
+  <text x="1405" y="454" text-anchor="middle" class="det-ext">int8 quantized, CPU</text>
+  <text x="1405" y="472" text-anchor="middle" class="det-ext">VAD filter built-in</text>
+  <text x="1405" y="496" text-anchor="middle" class="det-ext">model cached across</text>
+  <text x="1405" y="514" text-anchor="middle" class="det-ext">connections via</text>
+  <text x="1405" y="532" text-anchor="middle" class="det-ext">WhisperModel cache</text>
+  <text x="1405" y="556" text-anchor="middle" class="det-ext">OSS/faster-whisper</text>
 
   <!-- ══════════════ ARROWS ══════════════ -->
 
   <!-- Speaker → GET /api/voices -->
-  <line x1="310" y1="200" x2="918" y2="135" stroke="#44cc88" stroke-width="1.2" marker-end="url(#arr-http)"/>
+  <line x1="310" y1="200" x2="918" y2="143" stroke="#44cc88" stroke-width="1.2" marker-end="url(#arr-http)"/>
 
   <!-- Speaker → POST /api/speak -->
-  <line x1="310" y1="350" x2="918" y2="260" stroke="#ff8844" stroke-width="1.4" marker-end="url(#arr-http)"/>
+  <line x1="310" y1="350" x2="918" y2="278" stroke="#ff8844" stroke-width="1.4" marker-end="url(#arr-http)"/>
 
   <!-- Tutor → WS /api/transcribe -->
-  <line x1="550" y1="415" x2="918" y2="430" stroke="#22ccff" stroke-width="1.4" marker-end="url(#arr-ws)"/>
+  <line x1="550" y1="415" x2="918" y2="462" stroke="#22ccff" stroke-width="1.4" marker-end="url(#arr-ws)"/>
 
   <!-- WS → Tutor (transcript response, dashed) -->
-  <line x1="918" y1="455" x2="550" y2="445" stroke="#1188aa" stroke-width="1" stroke-dasharray="5,3" marker-end="url(#arr-resp)"/>
+  <line x1="918" y1="487" x2="550" y2="445" stroke="#1188aa" stroke-width="1" stroke-dasharray="5,3" marker-end="url(#arr-resp)"/>
 
   <!-- FreeSpeech → WS /api/transcribe -->
-  <line x1="800" y1="415" x2="918" y2="440" stroke="#22ccff" stroke-width="1.4" marker-end="url(#arr-ws)"/>
+  <line x1="800" y1="415" x2="918" y2="472" stroke="#22ccff" stroke-width="1.4" marker-end="url(#arr-ws)"/>
 
   <!-- WS → FreeSpeech (transcript response, dashed) -->
-  <line x1="918" y1="465" x2="800" y2="455" stroke="#1188aa" stroke-width="1" stroke-dasharray="5,3" marker-end="url(#arr-resp)"/>
+  <line x1="918" y1="497" x2="800" y2="455" stroke="#1188aa" stroke-width="1" stroke-dasharray="5,3" marker-end="url(#arr-resp)"/>
 
-  <!-- shared.jsx → Speaker panel -->
+  <!-- shared utilities → Speaker panel -->
   <line x1="195" y1="660" x2="195" y2="650" stroke="#44aa99" stroke-width="1.2" marker-end="url(#arr-shared)"/>
 
-  <!-- shared.jsx → Tutor panel -->
+  <!-- shared utilities → Tutor panel -->
   <line x1="435" y1="660" x2="435" y2="650" stroke="#44aa99" stroke-width="1.2" marker-end="url(#arr-shared)"/>
 
-  <!-- shared.jsx → FreeSpeech panel -->
+  <!-- shared utilities → FreeSpeech panel -->
   <line x1="680" y1="660" x2="680" y2="650" stroke="#44aa99" stroke-width="1.2" marker-end="url(#arr-shared)"/>
 
   <!-- POST /api/speak → Azure TTS (horizontal) -->
-  <line x1="1240" y1="254" x2="1294" y2="254" stroke="#884466" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arr-ext)"/>
+  <line x1="1240" y1="278" x2="1294" y2="278" stroke="#884466" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arr-ext)"/>
 
   <!-- WS /api/transcribe → faster-whisper (horizontal) -->
-  <line x1="1240" y1="437" x2="1294" y2="437" stroke="#664499" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arr-ext)"/>
+  <line x1="1240" y1="469" x2="1294" y2="469" stroke="#664499" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arr-ext)"/>
 
   <!-- ══════════════ LEGEND ══════════════ -->
   <!-- row 1 -->
-  <line x1="910" y1="670" x2="942" y2="670" stroke="#ffaa22" stroke-width="1.5" marker-end="url(#arr-http)"/>
-  <text x="950" y="675" font-size="12" fill="#ffaa22">HTTP request</text>
-  <line x1="1100" y1="670" x2="1132" y2="670" stroke="#22ccff" stroke-width="1.5" marker-end="url(#arr-ws)"/>
-  <text x="1140" y="675" font-size="12" fill="#22ccff">WebSocket</text>
-  <line x1="1310" y1="670" x2="1342" y2="670" stroke="#1188aa" stroke-width="1" stroke-dasharray="5,3" marker-end="url(#arr-resp)"/>
-  <text x="1350" y="675" font-size="12" fill="#1188aa">response</text>
+  <line x1="910" y1="700" x2="942" y2="700" stroke="#ffaa22" stroke-width="1.5" marker-end="url(#arr-http)"/>
+  <text x="950" y="705" font-size="12" fill="#ffaa22">HTTP request</text>
+  <line x1="1100" y1="700" x2="1132" y2="700" stroke="#22ccff" stroke-width="1.5" marker-end="url(#arr-ws)"/>
+  <text x="1140" y="705" font-size="12" fill="#22ccff">WebSocket</text>
+  <line x1="1310" y1="700" x2="1342" y2="700" stroke="#1188aa" stroke-width="1" stroke-dasharray="5,3" marker-end="url(#arr-resp)"/>
+  <text x="1350" y="705" font-size="12" fill="#1188aa">response</text>
   <!-- row 2 -->
-  <line x1="1010" y1="692" x2="1042" y2="692" stroke="#44aa99" stroke-width="1.2" marker-end="url(#arr-shared)"/>
-  <text x="1050" y="697" font-size="12" fill="#44aa99">shared utility</text>
-  <line x1="1240" y1="692" x2="1272" y2="692" stroke="#664499" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arr-ext)"/>
-  <text x="1280" y="697" font-size="12" fill="#664499">external call</text>
+  <line x1="1010" y1="722" x2="1042" y2="722" stroke="#44aa99" stroke-width="1.2" marker-end="url(#arr-shared)"/>
+  <text x="1050" y="727" font-size="12" fill="#44aa99">shared utility</text>
+  <line x1="1240" y1="722" x2="1272" y2="722" stroke="#664499" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arr-ext)"/>
+  <text x="1280" y="727" font-size="12" fill="#664499">external call</text>
 </svg>

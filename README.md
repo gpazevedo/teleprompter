@@ -2,7 +2,7 @@
 
 Browser-based teleprompter and pronunciation trainer for public speakers. Amber phosphor broadcast aesthetic.
 
-![Functional overview](docs/architecture-functional.svg)
+![Functional overview](docs/functional-overview.svg)
 
 ## Stack
 
@@ -25,7 +25,9 @@ Teleprompter with smooth auto-scroll and TTS narration.
 | Reset | `R` | RESET button |
 | Mirror | `M` | MIRROR button |
 
-Speed adjusts live during TTS playback — voice and scroll respond immediately. Select text before pressing T to speak only the selection. Text can be loaded from a file or pasted directly.
+Speed adjusts live during TTS playback — voice and scroll respond immediately. Select text before pressing T to speak only the selection.
+
+The speaker keeps a **library of speeches** in memory. Load as many as you like (file or paste) — each gets a title asked on upload. The right-side **TEXTS** panel lists them; click a title to switch speeches, **+ ADD** loads another, **✕** removes the selected one (with confirmation). Speeches are lost on reload.
 
 ### Tutor
 

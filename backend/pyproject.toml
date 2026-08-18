@@ -1,7 +1,7 @@
 [project]
 name = "teleprompter-backend"
 version = "0.1.0"
-description = "Add your description here"
+description = "Teleprompter"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
