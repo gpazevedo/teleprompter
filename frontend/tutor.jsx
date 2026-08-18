@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useMemo, useEffect } from "react";
-import { parseSpeech } from "./speechUtils.js";
+import { parseSpeech, markdownToText, isMarkdownFile } from "./speechUtils.js";
 import { diffWords } from "./diffUtils.js";
 import { C, btnSmall } from "./lib/theme.js";
 import { ScanLines, Vignette, DeviceSelect, AudioLevelMeter } from "./lib/ui.jsx";
@@ -68,7 +68,8 @@ export default function Tutor() {
   };
 
   const handleText = (raw, name = "pasted text") => {
-    const items = parseSpeech(raw);
+    const text = isMarkdownFile(name) ? markdownToText(raw) : raw;
+    const items = parseSpeech(text);
     setSpeech(items);
     setFileName(name);
     const plainText = items
@@ -305,7 +306,7 @@ export default function Tutor() {
           letterSpacing: 1, textDecoration: "underline dotted", marginLeft: "auto",
         }}>
           {fileName ?? "load file"}
-          <input type="file" accept=".txt" onChange={handleFile} style={{ display: "none" }} />
+          <input type="file" accept=".txt,.md,.markdown" onChange={handleFile} style={{ display: "none" }} />
         </label>
       </div>
 

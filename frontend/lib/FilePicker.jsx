@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { C, btnSmall } from "./theme.js";
 import { ScanLines } from "./ui.jsx";
+import { markdownToText, isMarkdownFile } from "../speechUtils.js";
 
 export function FilePicker({ onFile, onText, onAdd, onCancel, title = "Load your speech", submitLabel = "USE THIS TEXT →" }) {
   const [pasted, setPasted] = useState("");
@@ -14,7 +15,8 @@ export function FilePicker({ onFile, onText, onAdd, onCancel, title = "Load your
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-      setPasted(ev.target.result);
+      const text = isMarkdownFile(file.name) ? markdownToText(ev.target.result) : ev.target.result;
+      setPasted(text);
       setNewTitle(t => t || file.name.replace(/\.[^.]+$/, ""));
     };
     reader.readAsText(file);
@@ -78,7 +80,7 @@ export function FilePicker({ onFile, onText, onAdd, onCancel, title = "Load your
       >
         <div style={{ fontSize: 36, lineHeight: 1 }}>◉</div>
         <div style={{ fontSize: 13, color: C.textFaint, letterSpacing: 2 }}>CHOOSE .TXT FILE</div>
-        <input type="file" accept=".txt" onChange={handleFile} style={{ display: "none" }} />
+        <input type="file" accept=".txt,.md,.markdown" onChange={handleFile} style={{ display: "none" }} />
       </label>
 
       <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", gap: 16, width: "min(560px, 90vw)" }}>

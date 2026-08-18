@@ -17,6 +17,60 @@ export function parseSpeech(text) {
   return items;
 }
 
+// ─── Markdown → teleprompter text ─────────────────────────────────────────────
+
+/** True when a filename is Markdown (.md / .markdown). */
+export function isMarkdownFile(name = "") {
+  return /\.(md|markdown)$/i.test(name);
+}
+
+/**
+ * Convert a Markdown document to the teleprompter's plain text dialect
+ * (`## ` section, `---` break, plain paragraphs), stripping Markdown-only
+ * syntax: headings, emphasis markers, links, images, code fences, lists,
+ * blockquotes, and tables.
+ */
+export function markdownToText(md) {
+  const out = [];
+  let inFence = false;
+  for (const raw of md.split("\n")) {
+    let line = raw;
+
+    if (/^\s*(```|~~~)/.test(line)) { inFence = !inFence; continue; }
+    if (inFence) { out.push(line); continue; }
+
+    // Horizontal rule → teleprompter break
+    if (/^\s*(\*\*\*+|---+|___+)\s*$/.test(line)) { out.push("---"); continue; }
+
+    // Heading (any level) → section header
+    if (/^\s*#{1,6}\s+/.test(line)) {
+      out.push("## " + line.replace(/^\s*#{1,6}\s+/, "").trim());
+      continue;
+    }
+
+    // Table row → plain cells joined by " · "; drop separator rows
+    if (/^\s*\|.*\|\s*$/.test(line)) {
+      const cells = line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map(c => c.trim());
+      if (!cells.every(c => /^:?-+:?$/.test(c))) out.push(cells.join(" · "));
+      continue;
+    }
+
+    // Blockquote and list markers
+    line = line.replace(/^\s*>\s?/, "");
+    line = line.replace(/^\s*(?:[-*+]\s+|\d+\.\s+)/, "");
+
+    // Inline syntax: images (dropped), links (text), code, emphasis
+    line = line.replace(/!\[([^\]]*)\]\([^)]*\)/g, "");
+    line = line.replace(/\[([^\]]+)\]\([^)]*\)/g, "$1");
+    line = line.replace(/`([^`]+)`/g, "$1");
+    line = line.replace(/(\*\*|__)(.+?)\1/g, "$2");
+    line = line.replace(/\*([^*\n]+)\*/g, "$1");
+
+    out.push(line);
+  }
+  return out.join("\n");
+}
+
 // ─── TTS helpers ──────────────────────────────────────────────────────────────
 
 /** Count sentences in a text block (used for sentence-boundary mapping). */
