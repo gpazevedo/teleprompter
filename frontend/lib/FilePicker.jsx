@@ -15,7 +15,13 @@ export function FilePicker({ onFile, onText, onAdd, onCancel, title = "Load your
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-      const text = isMarkdownFile(file.name) ? markdownToText(ev.target.result) : ev.target.result;
+      let text = ev.target.result;
+      if (isMarkdownFile(file.name)) {
+        const convert = window.confirm(
+          `"${file.name}" is a Markdown file.\n\nConvert it to plain text?\n\n(OK = convert · Cancel = keep raw)`
+        );
+        if (convert) text = markdownToText(text);
+      }
       setPasted(text);
       setNewTitle(t => t || file.name.replace(/\.[^.]+$/, ""));
     };
