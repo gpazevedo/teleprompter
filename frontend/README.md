@@ -28,7 +28,7 @@ frontend/
 │   ├── theme.js          Color palette C, btnSmall style
 │   ├── ui.jsx            ScanLines, Vignette, DeviceSelect, AudioLevelMeter
 │   ├── audio.js          b64ToBlob, playTts, useAudioDevices, getAudioStream
-│   ├── FilePicker.jsx    File load + paste-text screen
+│   ├── FilePicker.jsx    File load + paste-text screen (single load / add-to-library modes)
 │   └── transcription-protocol.js   WS_MSG constants — canonical message types
 ├── index.html
 ├── vite.config.js
@@ -45,6 +45,8 @@ Teleprompter with two independent play modes sharing a scroll container:
 - **TTS + synchronized scroll** — POSTs to `/api/speak`, reads NDJSON stream, queues audio chunks, syncs `scrollTop` via rAF against merged sentence-boundary timings.
 
 Speed adjusts live during TTS playback — `audio.playbackRate` and scroll interpolation update every frame. Select text before pressing T to speak only the selection.
+
+**Multi-speech library** — speeches are held in memory as a list of `{id, title, items}`; the active one drives all scroll/TTS code. A right-side **TEXTS** panel lists the titles: click to switch, **+ ADD** re-opens the picker (title asked on upload, defaulting to the filename minus extension), **✕** removes the selected speech after a `window.confirm`. An empty library shows the full-screen picker. `FilePicker` gets an optional `onAdd`/`onCancel` mode for this; the single-load path used by Tutor is unchanged.
 
 ### Tutor (`tutor.jsx`)
 

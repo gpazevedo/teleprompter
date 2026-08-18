@@ -11,20 +11,29 @@ export function b64ToBlob(audio_b64, mimeType = "audio/mpeg") {
  * Play TTS audio for given text via /api/speak endpoint (NDJSON stream).
  * Returns { abort(), audio } — abort stops playback, audio is the live HTMLAudioElement.
  * Chunks are played sequentially as they arrive so playback starts sooner.
+ * onWord(wordText, globalWordIdx) fires via rAF as each word boundary is reached.
  */
-export function playTts(text, voice, onEnd, outputDeviceId) {
+export function playTts(text, voice, onEnd, outputDeviceId, onWord, volume = 1) {
   const ctrl = new AbortController();
   const handle = { abort: null, audio: null };
+  let currentVolume = volume;
   const blobUrls = [];
   let aborted = false;
+  let wordRafId = null;
+  let globalWordIdx = 0;
 
   const cleanup = () => {
+    if (wordRafId) { cancelAnimationFrame(wordRafId); wordRafId = null; }
     if (handle.audio) { handle.audio.pause(); handle.audio = null; }
     blobUrls.forEach(u => URL.revokeObjectURL(u));
     blobUrls.length = 0;
   };
 
   handle.abort = () => { aborted = true; ctrl.abort(); cleanup(); onEnd?.(); };
+  handle.setVolume = (v) => {
+    currentVolume = v;
+    if (handle.audio) handle.audio.volume = v;
+  };
 
   (async () => {
     try {
@@ -46,11 +55,28 @@ export function playTts(text, voice, onEnd, outputDeviceId) {
           if (streamDone) { cleanup(); onEnd?.(); }
           return;
         }
-        const { audio, blobUrl } = queue.shift();
+        const { audio, blobUrl, wordBoundaries, chunkWordOffset } = queue.shift();
         handle.audio = audio;
+        audio.volume = currentVolume;
         if (outputDeviceId && audio.setSinkId) await audio.setSinkId(outputDeviceId);
         if (aborted) { URL.revokeObjectURL(blobUrl); return; }
+
+        if (onWord && wordBoundaries.length) {
+          let wbIdx = 0;
+          const tick = () => {
+            if (aborted) return;
+            const nowMs = audio.currentTime * 1000;
+            while (wbIdx < wordBoundaries.length && nowMs >= wordBoundaries[wbIdx].offset_ms) {
+              onWord(wordBoundaries[wbIdx].word, chunkWordOffset + wbIdx);
+              wbIdx++;
+            }
+            wordRafId = wbIdx < wordBoundaries.length ? requestAnimationFrame(tick) : null;
+          };
+          wordRafId = requestAnimationFrame(tick);
+        }
+
         audio.addEventListener("ended", () => {
+          if (wordRafId) { cancelAnimationFrame(wordRafId); wordRafId = null; }
           URL.revokeObjectURL(blobUrl);
           if (queue.length > 0) playNext();
           else if (streamDone) { cleanup(); onEnd?.(); }
@@ -66,12 +92,15 @@ export function playTts(text, voice, onEnd, outputDeviceId) {
         buf = lines.pop();
         for (const line of lines) {
           if (!line.trim()) continue;
-          const { audio_b64 } = JSON.parse(line);
+          const { audio_b64, word_boundaries = [] } = JSON.parse(line);
           const blobUrl = b64ToBlob(audio_b64);
           blobUrls.push(blobUrl);
           const audio = new Audio(blobUrl);
+          audio.volume = currentVolume;
+          const chunkWordOffset = globalWordIdx;
+          globalWordIdx += word_boundaries.length;
           const wasEmpty = queue.length === 0 && !handle.audio;
-          queue.push({ audio, blobUrl });
+          queue.push({ audio, blobUrl, wordBoundaries: word_boundaries, chunkWordOffset });
           if (wasEmpty) playNext();
         }
       }

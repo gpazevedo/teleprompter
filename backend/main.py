@@ -54,6 +54,7 @@ async def speak(req: SpeakRequest):
             communicate = edge_tts.Communicate(chunk_text, req.voice)
             audio_buf = BytesIO()
             boundaries = []
+            word_boundaries = []
             async for item in communicate.stream():
                 if item["type"] == "audio":
                     audio_buf.write(item["data"])
@@ -63,9 +64,16 @@ async def speak(req: SpeakRequest):
                         "offset_ms": item["offset"] // 10_000,
                         "duration_ms": item["duration"] // 10_000,
                     })
+                elif item["type"] == "WordBoundary":
+                    word_boundaries.append({
+                        "word": item["text"],
+                        "offset_ms": item["offset"] // 10_000,
+                        "duration_ms": item["duration"] // 10_000,
+                    })
             yield json.dumps({
                 "audio_b64": base64.b64encode(audio_buf.getvalue()).decode(),
                 "boundaries": boundaries,
+                "word_boundaries": word_boundaries,
                 "chunk_size": CHUNK_SIZE,
                 "chunk": i,
                 "is_last": i == len(chunks) - 1,

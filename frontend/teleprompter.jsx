@@ -21,15 +21,20 @@ const incFontSize = s => Math.min(FONT_MAX, s + FONT_STEP);
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function Teleprompter() {
-  // Speech content
-  const [speech, setSpeech]       = useState([]);
-  const [fileName, setFileName]   = useState(null);
+  // Speech library — multiple speeches, one active at a time
+  const [speeches, setSpeeches]   = useState([]);
+  const [activeId, setActiveId]   = useState(null);
+  const [adding, setAdding]       = useState(false);
+
+  const activeSpeech = speeches.find(s => s.id === activeId) ?? speeches[0];
+  const speech = activeSpeech?.items ?? [];
 
   // Scroll / playback
   const [playing, setPlaying]     = useState(false);
   const [speed, setSpeed]         = useState(SPEED_DEFAULT);
   const [mirrored, setMirrored]   = useState(false);
   const [fontSize, setFontSize]   = useState(40);
+  const [volume, setVolume]       = useState(1);
   const [elapsed, setElapsed]     = useState(0);
   const [progress, setProgress]   = useState(0);
 
@@ -38,6 +43,7 @@ export default function Teleprompter() {
   const [voice, setVoice]         = useState(DEFAULT_VOICE);
   const [ttsActive, setTtsActive] = useState(false);
   const [ttsPlaying, setTtsPlaying] = useState(false);
+  const [highlightedItemIdx, setHighlightedItemIdx] = useState(null);
 
   // Refs — scroll animation
   const scrollRef   = useRef(null);
@@ -46,6 +52,7 @@ export default function Teleprompter() {
   const intervalRef = useRef(null);
   const speedRef    = useRef(speed);
   const accumRef    = useRef(0);
+  const volumeRef   = useRef(1);
 
   // Audio devices
   const { audioOutputs, selectedOutput, setSelectedOutput } = useAudioDevices();
@@ -69,6 +76,7 @@ export default function Teleprompter() {
   // ── Scroll animation ─────────────────────────────────────────────────────
 
   useEffect(() => { speedRef.current = speed; }, [speed]);
+  useEffect(() => { volumeRef.current = volume; }, [volume]);
 
   const scrollTick = useCallback((timestamp) => {
     if (!scrollRef.current) return;
@@ -117,26 +125,6 @@ export default function Teleprompter() {
     return () => el.removeEventListener("scroll", onScroll);
   }, []);
 
-  // ── File picker ──────────────────────────────────────────────────────────
-
-  const handleFile = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      setSpeech(parseSpeech(ev.target.result));
-      setFileName(file.name);
-      reset();
-    };
-    reader.readAsText(file);
-  };
-
-  const handleText = (text) => {
-    setSpeech(parseSpeech(text));
-    setFileName("pasted text");
-    reset();
-  };
-
   // ── Scroll helpers ───────────────────────────────────────────────────────
 
   const scrollToItem = useCallback((itemIdx) => {
@@ -174,11 +162,26 @@ export default function Teleprompter() {
     }
     for (const { blobUrl } of ttsQueueRef.current) URL.revokeObjectURL(blobUrl);
     ttsQueueRef.current = [];
+    setHighlightedItemIdx(null);
     setTtsPlaying(false);
     setTtsActive(false);
   }, []);
 
-  // ── Hot-swap audio output device during TTS playback ─────────────────────
+  // ── Sentence navigation ──────────────────────────────────────────────────
+
+  const navigateSentence = useCallback((dir) => {
+    stopTts();
+    const currentIdx = ttsActive ? highlightedItemIdx : itemAtGuide();
+    if (currentIdx == null) return;
+    const step = dir === "prev" ? -1 : 1;
+    let idx = currentIdx + step;
+    while (idx >= 0 && idx < speech.length) {
+      if (speech[idx].type !== "break") { scrollToItem(idx); return; }
+      idx += step;
+    }
+  }, [ttsActive, highlightedItemIdx, itemAtGuide, speech, scrollToItem, stopTts]);
+
+  // ── Hot-swap audio output device / volume during TTS playback ─────────────
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -186,6 +189,10 @@ export default function Teleprompter() {
       audio.setSinkId(selectedOutput);
     }
   }, [selectedOutput]);
+
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.volume = volume;
+  }, [volume]);
 
   // ── Cleanup on unmount (after stopTts is declared) ───────────────────────
 
@@ -215,6 +222,7 @@ export default function Teleprompter() {
 
     setTtsActive(true);
     setPlaying(false);
+    if (!isSelection && speakableItems.length > 0) setHighlightedItemIdx(speakableItems[0].absIdx);
 
     const ctrl = new AbortController();
     abortRef.current = () => ctrl.abort();
@@ -228,32 +236,46 @@ export default function Teleprompter() {
     let streamDone = false;
 
     // rAF scroll sync — uses globalOffsetMs + audio.currentTime for global position
+    let lastSeg = -1;
     const syncScroll = () => {
       const el = scrollRef.current;
+      if (!el) return; // component unmounted — stop without rescheduling
       const audio = audioRef.current;
-      if (!el || !audio) return;
-
-      if (audio.playbackRate !== speedRef.current) audio.playbackRate = speedRef.current;
-      const currentMs = audio.currentTime * 1000 + globalOffsetMs;
-
-      let seg = 0;
-      for (let i = 1; i < mergedTimings.length; i++) {
-        if (currentMs >= mergedTimings[i].startMs) seg = i;
-        else break;
+      if (!audio) {
+        // Between chunks: keep loop alive so it restarts when next chunk plays
+        ttsRafRef.current = requestAnimationFrame(syncScroll);
+        return;
       }
 
-      const curr = mergedTimings[seg];
-      const next  = mergedTimings[seg + 1];
-      const currTop = curr?.targetScrollTop;
+      if (audio.playbackRate !== speedRef.current) audio.playbackRate = speedRef.current;
 
-      if (currTop != null) {
-        if (next?.targetScrollTop != null) {
-          const t = Math.max(0, Math.min(1,
-            (currentMs - curr.startMs) / (next.startMs - curr.startMs)
-          ));
-          el.scrollTop = currTop + (next.targetScrollTop - currTop) * t;
-        } else {
-          el.scrollTop = currTop;
+      if (mergedTimings.length > 0) {
+        const currentMs = audio.currentTime * 1000 + globalOffsetMs;
+
+        let seg = 0;
+        for (let i = 1; i < mergedTimings.length; i++) {
+          if (currentMs >= mergedTimings[i].startMs) seg = i;
+          else break;
+        }
+
+        if (seg !== lastSeg) {
+          lastSeg = seg;
+          setHighlightedItemIdx(mergedTimings[seg]?.itemAbsIdx ?? null);
+        }
+
+        const curr = mergedTimings[seg];
+        const next  = mergedTimings[seg + 1];
+        const currTop = curr?.targetScrollTop;
+
+        if (currTop != null) {
+          if (next?.targetScrollTop != null) {
+            const t = Math.max(0, Math.min(1,
+              (currentMs - curr.startMs) / (next.startMs - curr.startMs)
+            ));
+            el.scrollTop = currTop + (next.targetScrollTop - currTop) * t;
+          } else {
+            el.scrollTop = currTop;
+          }
         }
       }
 
@@ -276,6 +298,7 @@ export default function Teleprompter() {
         mergedTimings.push({
           startMs: startMs + globalOffsetMs,
           targetScrollTop: elemRect.top - scrollerRect.top + scroller.scrollTop - vh * 0.38,
+          itemAbsIdx: item.absIdx,
         });
       }
     };
@@ -284,6 +307,7 @@ export default function Teleprompter() {
       if (ctrl.signal.aborted || ttsQueueRef.current.length === 0) {
         if (streamDone) {
           if (ttsRafRef.current) { cancelAnimationFrame(ttsRafRef.current); ttsRafRef.current = null; }
+          setHighlightedItemIdx(null);
           setTtsPlaying(false);
           setTtsActive(false);
         }
@@ -297,21 +321,60 @@ export default function Teleprompter() {
       if (ctrl.signal.aborted) { URL.revokeObjectURL(blobUrl); return; }
 
       // Build timings for this chunk now that we know the accumulated offset
-      if (!isSelection) applyChunkTimings(chunkIdx, boundaries);
+      let effectiveMs = 0;
+      if (!isSelection) {
+        if (boundaries.length) {
+          applyChunkTimings(chunkIdx, boundaries);
+        } else {
+          // No sentence boundaries: await metadata so timings are ready before playback
+          const chunkItems = itemChunks[chunkIdx] || [];
+          if (chunkItems.length && scroller) {
+            if (audio.readyState < 1) {
+              await new Promise((resolve) => {
+                audio.addEventListener("loadedmetadata", resolve, { once: true });
+              });
+            }
+            if (ctrl.signal.aborted) { URL.revokeObjectURL(blobUrl); return; }
+            const totalChars = chunkItems.reduce((s, it) => s + it.text.length, 0);
+            if (totalChars) {
+              const dur = audio.duration;
+              const totalMs = (isFinite(dur) && dur > 0) ? dur * 1000 : totalChars * 80;
+              effectiveMs = totalMs;
+              const scrollerRect = scroller.getBoundingClientRect();
+              const vh = scroller.clientHeight;
+              let elapsed = 0;
+              for (const item of chunkItems) {
+                const elem = paraElemsRef.current[item.absIdx];
+                if (elem) {
+                  const elemRect = elem.getBoundingClientRect();
+                  mergedTimings.push({
+                    startMs: elapsed + globalOffsetMs,
+                    targetScrollTop: elemRect.top - scrollerRect.top + scroller.scrollTop - vh * 0.38,
+                    itemAbsIdx: item.absIdx,
+                  });
+                }
+                elapsed += (item.text.length / totalChars) * totalMs;
+              }
+            }
+          }
+        }
+      }
 
-      // Start scroll sync once we have timings
-      if (mergedTimings.length && !ttsRafRef.current) {
+      // Always start scroll sync loop
+      if (!ttsRafRef.current) {
         ttsRafRef.current = requestAnimationFrame(syncScroll);
       }
 
       audio.addEventListener("ended", () => {
-        globalOffsetMs += audio.duration * 1000;
+        const dur = audio.duration;
+        globalOffsetMs += (isFinite(dur) && dur > 0) ? dur * 1000 : effectiveMs;
         URL.revokeObjectURL(blobUrl);
         if (audioRef.current === audio) audioRef.current = null;
         if (ttsQueueRef.current.length > 0) {
           playNext();
         } else if (streamDone) {
           if (ttsRafRef.current) { cancelAnimationFrame(ttsRafRef.current); ttsRafRef.current = null; }
+          setHighlightedItemIdx(null);
           setTtsPlaying(false);
           setTtsActive(false);
         }
@@ -356,6 +419,7 @@ export default function Teleprompter() {
           }
           const blobUrl = b64ToBlob(audio_b64);
           const audio = new Audio(blobUrl);
+          audio.volume = volumeRef.current;
           audio._blobUrl = blobUrl;
           ttsQueueRef.current.push({ audio, blobUrl, chunkIdx, boundaries });
           // Start playing as soon as the first chunk arrives
@@ -367,12 +431,14 @@ export default function Teleprompter() {
       // Stream finished — if nothing is playing and queue is empty, we're done
       if (!audioRef.current && ttsQueueRef.current.length === 0) {
         if (ttsRafRef.current) { cancelAnimationFrame(ttsRafRef.current); ttsRafRef.current = null; }
+        setHighlightedItemIdx(null);
         setTtsPlaying(false);
         setTtsActive(false);
       }
     } catch (err) {
       if (err.name !== "AbortError") {
         if (ttsRafRef.current) { cancelAnimationFrame(ttsRafRef.current); ttsRafRef.current = null; }
+        setHighlightedItemIdx(null);
         setTtsPlaying(false);
         setTtsActive(false);
       }
@@ -393,12 +459,52 @@ export default function Teleprompter() {
     if (scrollRef.current) scrollRef.current.scrollTop = 0;
   }, [stopTts]);
 
+  // ── Speech library handlers ───────────────────────────────────────────────
+
+  const newId = () =>
+    crypto.randomUUID?.() ?? `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
+
+  const addSpeech = useCallback(({ title, text }) => {
+    const items = parseSpeech(text);
+    if (!items.length) return;
+    const id = newId();
+    setSpeeches(prev => [...prev, { id, title, items }]);
+    setActiveId(id);
+    setAdding(false);
+    paraElemsRef.current = [];
+    reset();
+  }, [reset]);
+
+  const selectSpeech = useCallback((id) => {
+    if (id === activeId) return;
+    setActiveId(id);
+    paraElemsRef.current = [];
+    reset();
+  }, [activeId, reset]);
+
+  const openAdd = useCallback(() => {
+    reset();
+    setAdding(true);
+  }, [reset]);
+
+  const removeActive = useCallback(() => {
+    if (!activeId) return;
+    if (!window.confirm(`Remove "${activeSpeech?.title ?? "this text"}"?`)) return;
+    const remaining = speeches.filter(s => s.id !== activeId);
+    setSpeeches(remaining);
+    setActiveId(remaining[0]?.id ?? null); // keep the first remaining entry selected
+    paraElemsRef.current = [];
+    reset();
+  }, [activeId, activeSpeech, speeches, reset]);
+
   // ── Keyboard ─────────────────────────────────────────────────────────────
 
   const formatTime = (s) =>
     `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
   const handleKey = useCallback((e) => {
+    const t = e.target;
+    if (t.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName)) return;
     if (e.code === "Space")        { e.preventDefault(); setPlaying(p => !p); }
     if (e.code === "ArrowUp")      { e.preventDefault(); setSpeed(s => Math.min(SPEED_MAX, +(s + 0.1).toFixed(2))); }
     if (e.code === "ArrowDown")    { e.preventDefault(); setSpeed(s => Math.max(SPEED_MIN, +(s - 0.1).toFixed(2))); }
@@ -410,14 +516,22 @@ export default function Teleprompter() {
   }, [reset, speak]);
 
   useEffect(() => {
+    if (adding || speeches.length === 0) return;
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [handleKey]);
+  }, [handleKey, adding, speeches.length]);
 
   // ── Render ───────────────────────────────────────────────────────────────
 
-  if (!speech.length) {
-    return <FilePicker onFile={handleFile} onText={handleText} />;
+  if (!speeches.length || adding) {
+    return (
+      <FilePicker
+        onAdd={addSpeech}
+        onCancel={adding ? () => setAdding(false) : undefined}
+        title={adding ? "Add a text" : undefined}
+        submitLabel="ADD TO LIBRARY →"
+      />
+    );
   }
 
   return (
@@ -429,8 +543,11 @@ export default function Teleprompter() {
       color: C.text,
     }}>
 
-      {/* ── Scroll wrapper ── */}
-      <div style={{ flex: 1, position: "relative", display: "flex", overflow: "hidden" }}>
+      {/* ── Speech area + library ── */}
+      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+
+        {/* ── Scroll wrapper ── */}
+        <div style={{ flex: 1, position: "relative", display: "flex", overflow: "hidden" }}>
 
         <ScanLines />
         <Vignette style={{ zIndex: 18 }} />
@@ -485,10 +602,12 @@ export default function Teleprompter() {
                 <div key={i} ref={setRef} style={{
                   fontSize: Math.max(13, Math.round(fontSize * 0.34)),
                   fontFamily: "'Courier Prime', 'Courier New', monospace",
-                  color: C.section,
+                  color: i === highlightedItemIdx ? C.amber : C.section,
                   letterSpacing: 6, fontWeight: 700,
                   marginBottom: 22, marginTop: 10,
                   textTransform: "uppercase",
+                  textShadow: i === highlightedItemIdx ? `0 0 28px ${C.amberFaint}` : "none",
+                  transition: "color 0.2s, text-shadow 0.2s",
                 }}>
                   ◆&nbsp;&nbsp;{item.text}
                 </div>
@@ -498,9 +617,13 @@ export default function Teleprompter() {
               return (
                 <p key={i} ref={setRef} style={{
                   fontSize, lineHeight: 1.5,
-                  color: C.textBold, fontWeight: 700,
+                  color: i === highlightedItemIdx ? C.amber : C.textBold,
+                  fontWeight: 700,
                   margin: "0 0 40px 0",
-                  textShadow: "0 0 80px rgba(255,200,100,0.1)",
+                  textShadow: i === highlightedItemIdx
+                    ? `0 0 28px ${C.amberFaint}`
+                    : "0 0 80px rgba(255,200,100,0.1)",
+                  transition: "color 0.2s, text-shadow 0.2s",
                 }}>
                   {item.text}
                 </p>
@@ -509,8 +632,11 @@ export default function Teleprompter() {
             return (
               <p key={i} ref={setRef} style={{
                 fontSize, lineHeight: 1.5,
-                color: C.text, fontWeight: 400,
+                color: i === highlightedItemIdx ? C.amber : C.text,
+                fontWeight: 400,
                 margin: "0 0 40px 0",
+                textShadow: i === highlightedItemIdx ? `0 0 28px ${C.amberFaint}` : "none",
+                transition: "color 0.2s, text-shadow 0.2s",
               }}>
                 {item.text}
               </p>
@@ -540,6 +666,76 @@ export default function Teleprompter() {
               background: "transparent", border: "none",
             }}
           />
+        </div>
+
+        </div>
+
+        {/* ── Library panel ── */}
+        <div style={{
+          width: 210, flexShrink: 0,
+          background: C.bgControls,
+          borderLeft: `1px solid ${C.divider}`,
+          display: "flex", flexDirection: "column",
+          zIndex: 2,
+        }}>
+          <div style={{
+            padding: "12px 14px 10px",
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            borderBottom: `1px solid ${C.divider}`,
+          }}>
+            <span style={{
+              fontFamily: "'Courier Prime', 'Courier New', monospace",
+              fontSize: 11, letterSpacing: 3, color: C.section, fontWeight: 700,
+            }}>
+              TEXTS
+            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <button
+                onClick={removeActive}
+                title="Remove selected text"
+                style={{
+                  ...btnSmall,
+                  padding: "4px 9px", fontSize: 11, fontWeight: 700,
+                  color: C.textFaint,
+                }}
+              >
+                ✕
+              </button>
+              <button onClick={openAdd} style={{
+                ...btnSmall,
+                padding: "4px 12px", fontSize: 11, fontWeight: 700, letterSpacing: 1,
+                color: C.text,
+              }}>
+                + ADD
+              </button>
+            </div>
+          </div>
+          <div style={{ flex: 1, overflowY: "auto", padding: 10 }}>
+            {speeches.map(s => {
+              const active = s.id === activeId;
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => selectSpeech(s.id)}
+                  title={s.title}
+                  style={{
+                    display: "block", width: "100%", textAlign: "left",
+                    padding: "10px 12px", marginBottom: 6,
+                    borderRadius: 5,
+                    background: active ? C.amberFaint : "rgba(255,255,255,0.03)",
+                    color: active ? C.amber : C.textFaint,
+                    border: `1px solid ${active ? C.amberDim : "transparent"}`,
+                    fontFamily: "'EB Garamond', Georgia, serif",
+                    fontSize: 16, lineHeight: 1.3, letterSpacing: 0.4,
+                    cursor: "pointer", transition: "all 0.15s",
+                    overflowWrap: "anywhere",
+                  }}
+                >
+                  {s.title}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
       </div>
@@ -615,6 +811,16 @@ export default function Teleprompter() {
 
           <div style={{ width: 1, height: 24, background: C.divider }} />
 
+          {/* Prev sentence */}
+          <button onClick={() => navigateSentence("prev")} style={{
+            background: "transparent", color: C.textFaint,
+            border: `1px solid ${C.divider}`, borderRadius: 6,
+            padding: "7px 10px", fontSize: 13, cursor: "pointer",
+            fontFamily: "'Courier Prime', monospace",
+          }}>
+            ◂
+          </button>
+
           {/* SPEAK */}
           <button
             onClick={speak}
@@ -632,7 +838,17 @@ export default function Teleprompter() {
               boxShadow: ttsActive ? "0 0 20px rgba(30,180,110,0.35)" : "none",
             }}
           >
-            {ttsActive ? "◼ STOP" : "◉ SPEAK"}
+            {ttsActive ? "◼ STOP" : "◉ SYSTEM SPEAK"}
+          </button>
+
+          {/* Next sentence */}
+          <button onClick={() => navigateSentence("next")} style={{
+            background: "transparent", color: C.textFaint,
+            border: `1px solid ${C.divider}`, borderRadius: 6,
+            padding: "7px 10px", fontSize: 13, cursor: "pointer",
+            fontFamily: "'Courier Prime', monospace",
+          }}>
+            ▸
           </button>
 
           <div style={{ width: 1, height: 24, background: C.divider }} />
@@ -647,6 +863,21 @@ export default function Teleprompter() {
             />
             <span style={{ color: C.text, fontSize: 13, fontWeight: 700, minWidth: 36, textAlign: "right", letterSpacing: 1 }}>
               {speed.toFixed(1)}×
+            </span>
+          </div>
+
+          <div style={{ width: 1, height: 24, background: C.divider }} />
+
+          {/* Volume */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ color: C.textFaint, fontSize: 11, letterSpacing: 2 }}>VOL</span>
+            <input
+              type="range" min={0} max={1} step={0.05}
+              value={volume} onChange={e => setVolume(+e.target.value)}
+              style={{ width: 80, accentColor: C.amber, cursor: "pointer" }}
+            />
+            <span style={{ color: C.text, fontSize: 13, fontWeight: 700, minWidth: 32, textAlign: "right", letterSpacing: 1 }}>
+              {Math.round(volume * 100)}%
             </span>
           </div>
 
@@ -712,12 +943,9 @@ export default function Teleprompter() {
             ⇄ MIRROR
           </button>
 
-          {/* File label + hints */}
+          {/* Active speech title + hints */}
           <div style={{ color: C.textFaint, fontSize: 10, letterSpacing: 1, lineHeight: 1.7, marginLeft: 4 }}>
-            <label style={{ cursor: "pointer", textDecoration: "underline dotted" }}>
-              {fileName ?? "load file"}
-              <input type="file" accept=".txt" onChange={handleFile} style={{ display: "none" }} />
-            </label>
+            {activeSpeech?.title ?? ""}
             <br />
             Space · ↑↓ · [ ] · T · R · M
           </div>

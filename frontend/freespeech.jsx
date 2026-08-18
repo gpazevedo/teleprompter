@@ -20,6 +20,7 @@ export default function FreeSpeech() {
   const [language, setLanguage]         = useState("en");
   const [whisperModel, setWhisperModel] = useState("small");
   const [fontSize, setFontSize]         = useState(22);
+  const [micGain, setMicGain]           = useState(1);
   const [elapsed, setElapsed]           = useState(0);
 
   const { audioInputs, selectedMic, setSelectedMic } = useAudioDevices();
@@ -46,6 +47,7 @@ export default function FreeSpeech() {
     micBarRef,
     getStream,
     silenceDurationMs: 300,
+    micGain,
     onPartial,
     onFinal,
     onError: useCallback(() => {}, []),
@@ -224,6 +226,21 @@ export default function FreeSpeech() {
           <button onClick={() => setFontSize(s => Math.max(14, s - 2))} style={btnSmall}>A−</button>
           <span style={{ color: C.text, fontSize: 12, minWidth: 24, textAlign: "center" }}>{fontSize}</span>
           <button onClick={() => setFontSize(s => Math.min(40, s + 2))} style={btnSmall}>A+</button>
+        </div>
+
+        <div style={{ width: 1, height: 24, background: C.divider }} />
+
+        {/* Mic gain */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ color: C.textFaint, fontSize: 11, letterSpacing: 2 }}>GAIN</span>
+          <input
+            type="range" min={0} max={3} step={0.1}
+            value={micGain} onChange={e => setMicGain(+e.target.value)}
+            style={{ width: 80, accentColor: C.amber, cursor: "pointer" }}
+          />
+          <span style={{ color: C.text, fontSize: 13, fontWeight: 700, minWidth: 32, textAlign: "right", letterSpacing: 1 }}>
+            {micGain.toFixed(1)}×
+          </span>
         </div>
 
         <style>{`

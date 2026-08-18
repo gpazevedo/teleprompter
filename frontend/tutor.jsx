@@ -41,17 +41,22 @@ export default function Tutor() {
   const [whisperModel, setWhisperModel] = useState("small");
   const [ttsPlaying, setTtsPlaying]     = useState(false);
   const [fontSize, setFontSize]         = useState(18);
+  const [micGain, setMicGain]           = useState(1);
+  const [volume, setVolume]             = useState(1);
   const [elapsed, setElapsed]           = useState(0);
   const [leftPct, setLeftPct]           = useState(58);
   const [topPct, setTopPct]             = useState(50);
+  const [sentenceIdx, setSentenceIdx]   = useState(0);
+  const [activeWordIdx, setActiveWordIdx] = useState(-1);
 
   const { audioInputs, audioOutputs, selectedMic, setSelectedMic, selectedOutput, setSelectedOutput } = useAudioDevices();
 
-  const mainRef     = useRef(null);
-  const rightRef    = useRef(null);
-  const ttsAbortRef = useRef(null);
-  const micBarRef   = useRef(null);
-  const intervalRef = useRef(null);
+  const mainRef          = useRef(null);
+  const rightRef         = useRef(null);
+  const ttsAbortRef      = useRef(null);
+  const micBarRef        = useRef(null);
+  const intervalRef      = useRef(null);
+  const sentenceIdxRef   = useRef(0);
 
   // File loading
   const handleFile = (e) => {
@@ -74,6 +79,34 @@ export default function Tutor() {
     setUserText(plainText);
   };
 
+  const sentences = useMemo(() => {
+    const matches = userText.match(/[^.!?]+[.!?]+/g);
+    if (!matches) return userText.trim() ? [userText.trim()] : [];
+    return matches.map(s => s.trim()).filter(Boolean);
+  }, [userText]);
+
+  // Word offset (in allWords) where each sentence starts
+  const sentenceWordOffsets = useMemo(() => {
+    const offsets = [0];
+    for (let i = 0; i < sentences.length - 1; i++)
+      offsets.push(offsets[i] + sentences[i].split(/\s+/).filter(Boolean).length);
+    return offsets;
+  }, [sentences]);
+
+  // Tokens for karaoke view: alternating word/whitespace parts
+  const textTokens = useMemo(() => {
+    const parts = userText.split(/(\s+)/);
+    let wordIdx = 0;
+    return parts.map(part => ({ text: part, wordIdx: /\S/.test(part) ? wordIdx++ : -1 }));
+  }, [userText]);
+
+  // Reset position when text changes
+  useEffect(() => {
+    sentenceIdxRef.current = 0;
+    setSentenceIdx(0);
+    setActiveWordIdx(-1);
+  }, [userText]);
+
   const getStream = useCallback(() => getAudioStream(selectedMic), [selectedMic]);
 
   const { listenState, start, stop } = useMicTranscription({
@@ -83,6 +116,7 @@ export default function Tutor() {
     micBarRef,
     getStream,
     silenceDurationMs: 300,
+    micGain,
     onPartial: useCallback((text) => setRecognizedText(text), []),
     onFinal:   useCallback((text) => setRecognizedText(text), []),
     onError:   useCallback(() => {}, []),
@@ -94,31 +128,55 @@ export default function Tutor() {
     await start();
   }, [start]);
 
-  // Play pronunciation via TTS
-  const playPronunciation = useCallback(() => {
-    if (ttsPlaying) {
-      ttsAbortRef.current?.abort();
-      ttsAbortRef.current = null;
-      setTtsPlaying(false);
-      return;
-    }
-    const text = userText.trim();
-    if (!text) return;
+  const startTtsFrom = useCallback((idx) => {
+    const text = sentences.slice(idx).join(" ").trim();
+    if (!text) { setTtsPlaying(false); return; }
+    const wordOffset = sentenceWordOffsets[idx] ?? 0;
     setTtsPlaying(true);
+    setActiveWordIdx(wordOffset);
     ttsAbortRef.current = playTts(
       text, LANG_VOICES[language] ?? LANG_VOICES.en,
-      () => setTtsPlaying(false),
+      () => { setTtsPlaying(false); setActiveWordIdx(-1); },
       selectedOutput || undefined,
+      (_word, globalIdx) => setActiveWordIdx(wordOffset + globalIdx),
+      volume,
     );
-  }, [userText, language, ttsPlaying, selectedOutput]);
+  }, [sentences, sentenceWordOffsets, language, selectedOutput, volume]);
 
-  // Hot-swap audio output device during TTS playback
+  const stopTts = useCallback(() => {
+    if (ttsAbortRef.current) {
+      ttsAbortRef.current.abort();
+      ttsAbortRef.current = null;
+    }
+    setActiveWordIdx(-1);
+  }, []);
+
+  // Play pronunciation via TTS (toggle stop/start from current sentence)
+  const playPronunciation = useCallback(() => {
+    if (ttsPlaying) { stopTts(); setTtsPlaying(false); return; }
+    startTtsFrom(sentenceIdxRef.current);
+  }, [ttsPlaying, stopTts, startTtsFrom]);
+
+  // Navigate by delta sentences: stop, move, restart
+  const navigateSentence = useCallback((delta) => {
+    const newIdx = Math.max(0, Math.min(sentences.length - 1, sentenceIdxRef.current + delta));
+    sentenceIdxRef.current = newIdx;
+    setSentenceIdx(newIdx);
+    stopTts();
+    startTtsFrom(newIdx);
+  }, [sentences.length, stopTts, startTtsFrom]);
+
+  // Hot-swap audio output device / volume during TTS playback
   useEffect(() => {
     const audio = ttsAbortRef.current?.audio;
     if (audio?.setSinkId && selectedOutput) {
       audio.setSinkId(selectedOutput);
     }
   }, [selectedOutput]);
+
+  useEffect(() => {
+    ttsAbortRef.current?.setVolume?.(volume);
+  }, [volume]);
 
   const diff = useMemo(() => {
     if (listenState !== "finished" || !recognizedText || !userText) return null;
@@ -173,16 +231,22 @@ export default function Tutor() {
     window.addEventListener("mouseup", onUp);
   }, []);
 
-  // Timer: runs only while actively listening
+  // Timer: runs while actively listening or system is speaking
   useEffect(() => {
-    if (listenState === "listening") {
+    if (listenState === "listening" || ttsPlaying) {
       intervalRef.current = setInterval(() => setElapsed(e => e + 1), 1000);
     } else {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
     return () => { clearInterval(intervalRef.current); intervalRef.current = null; };
-  }, [listenState]);
+  }, [listenState, ttsPlaying]);
+
+  // Scroll active word into view while TTS is playing
+  useEffect(() => {
+    if (activeWordIdx < 0) return;
+    document.querySelector("[data-active-word='true']")?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [activeWordIdx]);
 
   const formatTime = (s) =>
     `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
@@ -300,21 +364,53 @@ export default function Tutor() {
             }}>
               Your Text
             </div>
-            <textarea
-              value={userText}
-              onChange={e => setUserText(e.target.value)}
-              style={{
-                flex: 1, resize: "none",
-                background: "transparent", color: C.text,
-                border: "none", outline: "none",
-                padding: "8px 16px 16px",
+            {ttsPlaying ? (
+              <div style={{
+                flex: 1, overflow: "auto", padding: "8px 16px 16px",
                 fontSize, lineHeight: 1.6,
                 fontFamily: "'EB Garamond', Georgia, serif",
+                whiteSpace: "pre-wrap", wordWrap: "break-word",
                 scrollbarWidth: "thin",
                 scrollbarColor: `${C.amberDim} transparent`,
-              }}
-              placeholder="Type or paste text to practice..."
-            />
+              }}>
+                {textTokens.map((token, i) => {
+                  if (token.wordIdx < 0) return <span key={i}>{token.text}</span>;
+                  const isActive = token.wordIdx === activeWordIdx;
+                  return (
+                    <span
+                      key={i}
+                      data-active-word={isActive ? "true" : undefined}
+                      style={{
+                        color: isActive ? C.amber : C.text,
+                        background: isActive ? `${C.amber}22` : "transparent",
+                        borderRadius: 3,
+                        padding: isActive ? "0 2px" : "0",
+                        textShadow: isActive ? `0 0 10px ${C.amber}88` : "none",
+                        transition: "all 0.08s",
+                      }}
+                    >
+                      {token.text}
+                    </span>
+                  );
+                })}
+              </div>
+            ) : (
+              <textarea
+                value={userText}
+                onChange={e => setUserText(e.target.value)}
+                style={{
+                  flex: 1, resize: "none",
+                  background: "transparent", color: C.text,
+                  border: "none", outline: "none",
+                  padding: "8px 16px 16px",
+                  fontSize, lineHeight: 1.6,
+                  fontFamily: "'EB Garamond', Georgia, serif",
+                  scrollbarWidth: "thin",
+                  scrollbarColor: `${C.amberDim} transparent`,
+                }}
+                placeholder="Type or paste text to practice..."
+              />
+            )}
           </div>
 
           {/* Horizontal drag handle */}
@@ -439,16 +535,46 @@ export default function Tutor() {
 
         <div style={{ width: 1, height: 24, background: C.divider }} />
 
-        {/* Play pronunciation */}
-        <button onClick={playPronunciation} style={{
-          ...btnSmall,
-          background: ttsPlaying ? "rgba(30,180,110,0.15)" : "rgba(255,255,255,0.05)",
-          color: ttsPlaying ? "#22cc66" : "rgba(255,255,255,0.45)",
-          border: ttsPlaying ? "1px solid rgba(30,180,110,0.3)" : "1px solid rgba(255,255,255,0.08)",
-          padding: "7px 20px", fontSize: 13, fontWeight: 700, letterSpacing: 1,
-        }}>
-          {ttsPlaying ? "◼ STOP" : "◉ SYSTEM SPEAK"}
-        </button>
+        {/* TTS navigation + play */}
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <button
+            onClick={() => navigateSentence(-1)}
+            disabled={sentenceIdx === 0}
+            title="Previous sentence"
+            style={{
+              ...btnSmall,
+              padding: "7px 11px", fontSize: 14,
+              opacity: sentenceIdx === 0 ? 0.3 : 1,
+            }}
+          >◀</button>
+
+          <button onClick={playPronunciation} style={{
+            ...btnSmall,
+            background: ttsPlaying ? "rgba(30,180,110,0.15)" : "rgba(255,255,255,0.05)",
+            color: ttsPlaying ? "#22cc66" : "rgba(255,255,255,0.45)",
+            border: ttsPlaying ? "1px solid rgba(30,180,110,0.3)" : "1px solid rgba(255,255,255,0.08)",
+            padding: "7px 16px", fontSize: 13, fontWeight: 700, letterSpacing: 1,
+          }}>
+            {ttsPlaying ? "◼ STOP" : "◉ SYSTEM SPEAK"}
+          </button>
+
+          <button
+            onClick={() => navigateSentence(1)}
+            disabled={sentenceIdx >= sentences.length - 1}
+            title="Next sentence"
+            style={{
+              ...btnSmall,
+              padding: "7px 11px", fontSize: 14,
+              opacity: sentenceIdx >= sentences.length - 1 ? 0.3 : 1,
+            }}
+          >▶</button>
+
+          {sentences.length > 0 && (
+            <span style={{ color: C.textFaint, fontSize: 10, letterSpacing: 1, minWidth: 36, textAlign: "center" }}>
+              {sentenceIdx + 1}/{sentences.length}
+            </span>
+          )}
+        </div>
 
         <div style={{ width: 1, height: 24, background: C.divider }} />
 
@@ -458,6 +584,36 @@ export default function Tutor() {
           <button onClick={() => setFontSize(s => Math.max(FONT_MIN, s - FONT_STEP))} style={btnSmall}>A−</button>
           <span style={{ color: C.text, fontSize: 12, minWidth: 24, textAlign: "center" }}>{fontSize}</span>
           <button onClick={() => setFontSize(s => Math.min(FONT_MAX, s + FONT_STEP))} style={btnSmall}>A+</button>
+        </div>
+
+        <div style={{ width: 1, height: 24, background: C.divider }} />
+
+        {/* Mic gain */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ color: C.textFaint, fontSize: 11, letterSpacing: 2 }}>GAIN</span>
+          <input
+            type="range" min={0} max={3} step={0.1}
+            value={micGain} onChange={e => setMicGain(+e.target.value)}
+            style={{ width: 80, accentColor: C.amber, cursor: "pointer" }}
+          />
+          <span style={{ color: C.text, fontSize: 13, fontWeight: 700, minWidth: 32, textAlign: "right", letterSpacing: 1 }}>
+            {micGain.toFixed(1)}×
+          </span>
+        </div>
+
+        <div style={{ width: 1, height: 24, background: C.divider }} />
+
+        {/* Volume */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ color: C.textFaint, fontSize: 11, letterSpacing: 2 }}>VOL</span>
+          <input
+            type="range" min={0} max={1} step={0.05}
+            value={volume} onChange={e => setVolume(+e.target.value)}
+            style={{ width: 80, accentColor: C.amber, cursor: "pointer" }}
+          />
+          <span style={{ color: C.text, fontSize: 13, fontWeight: 700, minWidth: 32, textAlign: "right", letterSpacing: 1 }}>
+            {Math.round(volume * 100)}%
+          </span>
         </div>
 
         <style>{`

@@ -2,8 +2,32 @@ import React, { useState } from "react";
 import { C, btnSmall } from "./theme.js";
 import { ScanLines } from "./ui.jsx";
 
-export function FilePicker({ onFile, onText, title = "Load your speech" }) {
+export function FilePicker({ onFile, onText, onAdd, onCancel, title = "Load your speech", submitLabel = "USE THIS TEXT →" }) {
   const [pasted, setPasted] = useState("");
+  const [newTitle, setNewTitle] = useState("");
+
+  // In onAdd mode: picking a file pre-fills the text (and title from the filename)
+  // instead of loading immediately. Reset the input so re-picking the same file fires again.
+  const handleFile = (e) => {
+    if (!onAdd) { onFile?.(e); return; }
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setPasted(ev.target.result);
+      setNewTitle(t => t || file.name.replace(/\.[^.]+$/, ""));
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  };
+
+  const ready = onAdd ? newTitle.trim() && pasted.trim() : pasted.trim();
+
+  const submit = () => {
+    if (!ready) return;
+    if (onAdd) onAdd({ title: newTitle.trim(), text: pasted.trim() });
+    else onText?.(pasted.trim());
+  };
 
   return (
     <div style={{
@@ -54,7 +78,7 @@ export function FilePicker({ onFile, onText, title = "Load your speech" }) {
       >
         <div style={{ fontSize: 36, lineHeight: 1 }}>◉</div>
         <div style={{ fontSize: 13, color: C.textFaint, letterSpacing: 2 }}>CHOOSE .TXT FILE</div>
-        <input type="file" accept=".txt" onChange={onFile} style={{ display: "none" }} />
+        <input type="file" accept=".txt" onChange={handleFile} style={{ display: "none" }} />
       </label>
 
       <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", gap: 16, width: "min(560px, 90vw)" }}>
@@ -64,6 +88,25 @@ export function FilePicker({ onFile, onText, title = "Load your speech" }) {
       </div>
 
       <div style={{ position: "relative", zIndex: 1, width: "min(560px, 90vw)", display: "flex", flexDirection: "column", gap: 10 }}>
+        {onAdd && (
+          <input
+            value={newTitle}
+            onChange={e => setNewTitle(e.target.value)}
+            placeholder="Title for this text"
+            style={{
+              width: "100%", boxSizing: "border-box",
+              background: "rgba(255,255,255,0.03)",
+              color: C.text,
+              border: `1px solid ${C.divider}`,
+              borderRadius: 6, padding: "10px 14px",
+              fontSize: 15, lineHeight: 1.4,
+              fontFamily: "'Courier Prime', 'Courier New', monospace",
+              outline: "none",
+            }}
+            onFocus={e => { e.currentTarget.style.borderColor = C.amberDim; }}
+            onBlur={e => { e.currentTarget.style.borderColor = C.divider; }}
+          />
+        )}
         <textarea
           value={pasted}
           onChange={e => setPasted(e.target.value)}
@@ -83,22 +126,33 @@ export function FilePicker({ onFile, onText, title = "Load your speech" }) {
           onFocus={e => { e.currentTarget.style.borderColor = C.amberDim; }}
           onBlur={e => { e.currentTarget.style.borderColor = C.divider; }}
         />
-        <button
-          onClick={() => pasted.trim() && onText?.(pasted.trim())}
-          disabled={!pasted.trim()}
-          style={{
-            ...btnSmall,
-            alignSelf: "flex-end",
-            padding: "7px 24px", fontSize: 13, fontWeight: 700, letterSpacing: 1,
-            background: pasted.trim() ? `${C.amber}22` : "rgba(255,255,255,0.03)",
-            color: pasted.trim() ? C.amber : "rgba(255,255,255,0.2)",
-            border: `1px solid ${pasted.trim() ? C.amberDim : C.divider}`,
-            cursor: pasted.trim() ? "pointer" : "default",
-            transition: "all 0.2s",
-          }}
-        >
-          USE THIS TEXT →
-        </button>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          {onCancel && (
+            <button onClick={onCancel} style={{
+              ...btnSmall,
+              padding: "7px 16px", fontSize: 13,
+              color: C.textFaint,
+            }}>
+              ← CANCEL
+            </button>
+          )}
+          <button
+            onClick={submit}
+            disabled={!ready}
+            style={{
+              ...btnSmall,
+              alignSelf: "flex-end",
+              padding: "7px 24px", fontSize: 13, fontWeight: 700, letterSpacing: 1,
+              background: ready ? `${C.amber}22` : "rgba(255,255,255,0.03)",
+              color: ready ? C.amber : "rgba(255,255,255,0.2)",
+              border: `1px solid ${ready ? C.amberDim : C.divider}`,
+              cursor: ready ? "pointer" : "default",
+              transition: "all 0.2s",
+            }}
+          >
+            {submitLabel}
+          </button>
+        </div>
       </div>
 
       <div style={{ position: "relative", zIndex: 1, fontSize: 10, color: "rgba(255,255,255,0.15)", letterSpacing: 2 }}>
