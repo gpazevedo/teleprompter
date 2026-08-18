@@ -1,10 +1,10 @@
 import React, { useState, useRef, useCallback, useMemo, useEffect } from "react";
-import { parseSpeech, markdownToText, isMarkdownFile } from "./speechUtils.js";
 import { diffWords } from "./diffUtils.js";
 import { C, btnSmall } from "./lib/theme.js";
 import { ScanLines, Vignette, DeviceSelect, AudioLevelMeter } from "./lib/ui.jsx";
 import { playTts, useAudioDevices, getAudioStream } from "./lib/audio.js";
 import { FilePicker } from "./lib/FilePicker.jsx";
+import { LibraryPanel } from "./lib/speechLibrary.jsx";
 import { useMicTranscription } from "./transcription.js";
 
 const WHISPER_MODELS = ["tiny", "base", "small", "medium", "large-v3"];
@@ -32,9 +32,9 @@ const LISTEN_COLORS = {
   finished:   "#4488cc",
 };
 
-export default function Tutor() {
-  const [speech, setSpeech]             = useState([]);
-  const [fileName, setFileName]         = useState(null);
+export default function Tutor({ library }) {
+  const { speeches, activeId, adding, speech,
+          addSpeech, cancelAdd, selectSpeech, openAdd, removeActive } = library;
   const [userText, setUserText]         = useState("");
   const [recognizedText, setRecognizedText] = useState("");
   const [language, setLanguage]         = useState("en");
@@ -57,28 +57,6 @@ export default function Tutor() {
   const micBarRef        = useRef(null);
   const intervalRef      = useRef(null);
   const sentenceIdxRef   = useRef(0);
-
-  // File loading
-  const handleFile = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => handleText(ev.target.result, file.name);
-    reader.readAsText(file);
-  };
-
-  const handleText = (raw, name = "pasted text") => {
-    const text = isMarkdownFile(name) ? markdownToText(raw) : raw;
-    const items = parseSpeech(text);
-    setSpeech(items);
-    setFileName(name);
-    const plainText = items
-      .filter(i => i.type === "line" || i.type === "bold" || i.type === "break")
-      .map(i => i.type === "break" ? "" : i.text)
-      .join("\n\n")
-      .replace(/(\n\n){2,}/g, "\n\n");
-    setUserText(plainText);
-  };
 
   const sentences = useMemo(() => {
     const matches = userText.match(/[^.!?]+[.!?]+/g);
@@ -151,6 +129,18 @@ export default function Tutor() {
     }
     setActiveWordIdx(-1);
   }, []);
+
+  // Load the active speech into the editable practice text; reset on selection change
+  useEffect(() => {
+    const plain = speech
+      .filter(i => i.type === "line" || i.type === "bold" || i.type === "break")
+      .map(i => i.type === "break" ? "" : i.text)
+      .join("\n\n")
+      .replace(/(\n\n){2,}/g, "\n\n");
+    setUserText(plain);
+    setRecognizedText("");
+    stopTts();
+  }, [activeId, speech, stopTts]);
 
   // Play pronunciation via TTS (toggle stop/start from current sentence)
   const playPronunciation = useCallback(() => {
@@ -252,8 +242,8 @@ export default function Tutor() {
   const formatTime = (s) =>
     `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
-  if (!speech.length) {
-    return <FilePicker onFile={handleFile} onText={handleText} title="Load practice text" />;
+  if (!speeches.length || adding) {
+    return <FilePicker onAdd={addSpeech} onCancel={adding ? cancelAdd : undefined} title={adding ? "Add a text" : undefined} submitLabel="ADD TO LIBRARY →" />;
   }
 
   const listenColor = LISTEN_COLORS[listenState];
@@ -300,20 +290,16 @@ export default function Tutor() {
         <DeviceSelect label="OUTPUT" value={selectedOutput} onChange={setSelectedOutput}
           options={audioOutputs.map(d => ({ value: d.deviceId, label: d.label }))}
           maxWidth={200} />
-
-        <label style={{
-          cursor: "pointer", color: C.textFaint, fontSize: 11,
-          letterSpacing: 1, textDecoration: "underline dotted", marginLeft: "auto",
-        }}>
-          {fileName ?? "load file"}
-          <input type="file" accept=".txt,.md,.markdown" onChange={handleFile} style={{ display: "none" }} />
-        </label>
       </div>
 
-      {/* Main content: two-column layout */}
-      <div ref={mainRef} style={{
+      {/* Main content: two-column layout + library panel */}
+      <div style={{
         flex: 1, display: "flex", overflow: "hidden",
         zIndex: 3, position: "relative",
+      }}>
+      <div ref={mainRef} style={{
+        flex: 1, display: "flex", overflow: "hidden",
+        position: "relative",
       }}>
         {/* Left: Full text from file */}
         <div style={{
@@ -479,6 +465,8 @@ export default function Tutor() {
             </div>
           </div>
         </div>
+      </div>
+      <LibraryPanel speeches={speeches} activeId={activeId} onSelect={selectSpeech} onRemove={removeActive} onAdd={openAdd} />
       </div>
 
       {/* Bottom controls */}

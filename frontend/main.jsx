@@ -4,6 +4,7 @@ import Teleprompter from "./teleprompter.jsx";
 import Tutor from "./tutor.jsx";
 import FreeSpeech from "./freespeech.jsx";
 import { C } from "./lib/theme.js";
+import { useSpeechLibrary } from "./lib/speechLibrary.jsx";
 
 const TABS = [
   { id: "speaker",     label: "SPEAKER" },
@@ -13,6 +14,7 @@ const TABS = [
 
 function App() {
   const [tab, setTab] = useState("speaker");
+  const library = useSpeechLibrary();
 
   return (
     <div style={{ position: "fixed", inset: 0, display: "flex", flexDirection: "column", background: C.bg }}>
@@ -52,10 +54,10 @@ function App() {
       {/* Panels — both stay mounted to preserve state */}
       <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
         <div style={{ position: "absolute", inset: 0, display: tab === "speaker" ? "flex" : "none" }}>
-          <Teleprompter />
+          <Teleprompter library={library} />
         </div>
         <div style={{ position: "absolute", inset: 0, display: tab === "tutor" ? "flex" : "none" }}>
-          <Tutor />
+          <Tutor library={library} />
         </div>
         <div style={{ position: "absolute", inset: 0, display: tab === "freespeech" ? "flex" : "none" }}>
           <FreeSpeech />
