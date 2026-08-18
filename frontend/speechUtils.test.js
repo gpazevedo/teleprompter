@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseSpeech, countSentences, buildItemTimings } from "./speechUtils.js";
+import { parseSpeech, countSentences, buildItemTimings, markdownToText, isMarkdownFile } from "./speechUtils.js";
 
 // ─── parseSpeech ──────────────────────────────────────────────────────────────
 
@@ -140,5 +140,68 @@ describe("buildItemTimings", () => {
       { itemIdx: 0, startMs: 0 },
       { itemIdx: 1, startMs: 700 },
     ]);
+  });
+});
+
+// ─── markdownToText ───────────────────────────────────────────────────────────
+
+describe("markdownToText", () => {
+  it("converts headings of any level to section headers", () => {
+    expect(markdownToText("# Title\n### Sub\n## Existing")).toBe(
+      "## Title\n## Sub\n## Existing"
+    );
+  });
+
+  it("keeps a horizontal rule as a break", () => {
+    expect(markdownToText("---")).toBe("---");
+  });
+
+  it("strips inline bold and italic markers", () => {
+    expect(markdownToText("**bold** and *italic*")).toBe("bold and italic");
+  });
+
+  it("strips unordered and ordered list markers", () => {
+    expect(markdownToText("- item\n* item\n1. first\n2. second")).toBe(
+      "item\nitem\nfirst\nsecond"
+    );
+  });
+
+  it("converts links to their text and drops images", () => {
+    expect(markdownToText("[text](https://x)")).toBe("text");
+    expect(markdownToText("![alt](img.png)")).toBe("");
+  });
+
+  it("strips blockquotes", () => {
+    expect(markdownToText("> quoted")).toBe("quoted");
+  });
+
+  it("drops code fences and inline code markers", () => {
+    expect(markdownToText("```\ncode\n```")).toBe("code");
+    expect(markdownToText("run `npm test` now")).toBe("run npm test now");
+  });
+
+  it("converts table rows to plain cells and skips separator rows", () => {
+    expect(markdownToText("| A | B |\n|---|---|\n| 1 | 2 |")).toBe("A · B\n1 · 2");
+  });
+
+  it("keeps section and break markers but strips emphasis", () => {
+    const input = "## Intro\n**Bold line**\n---\nPlain line";
+    expect(markdownToText(input)).toBe("## Intro\nBold line\n---\nPlain line");
+  });
+});
+
+// ─── isMarkdownFile ───────────────────────────────────────────────────────────
+
+describe("isMarkdownFile", () => {
+  it("matches .md and .markdown, case-insensitive", () => {
+    expect(isMarkdownFile("speech.md")).toBe(true);
+    expect(isMarkdownFile("speech.markdown")).toBe(true);
+    expect(isMarkdownFile("speech.MD")).toBe(true);
+  });
+
+  it("rejects other extensions and empty names", () => {
+    expect(isMarkdownFile("speech.txt")).toBe(false);
+    expect(isMarkdownFile("speech.md.txt")).toBe(false);
+    expect(isMarkdownFile("")).toBe(false);
   });
 });
