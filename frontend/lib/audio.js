@@ -134,6 +134,17 @@ export async function getAudioStream(deviceId) {
   return navigator.mediaDevices.getUserMedia(constraints);
 }
 
+/**
+ * Keep the previous mic if it is still connected; otherwise prefer the
+ * built-in (notebook) mic, falling back to the first real input.
+ */
+export function pickMic(inputs, prev) {
+  if (inputs.some(d => d.deviceId === prev)) return prev;
+  const mics = inputs.filter(d => d.deviceId !== TAB_AUDIO_ID && !/^monitor of/i.test(d.label));
+  const builtIn = mics.find(d => /built-?in|internal/i.test(d.label));
+  return (builtIn ?? mics[0])?.deviceId ?? "";
+}
+
 export function useAudioDevices() {
   const [audioInputs, setAudioInputs]       = useState([]);
   const [audioOutputs, setAudioOutputs]     = useState([]);
@@ -158,7 +169,7 @@ export function useAudioDevices() {
       .map(d => ({ deviceId: d.deviceId, label: d.label || `Output ${d.deviceId.slice(0, 6)}` }));
     setAudioInputs(inputs);
     setAudioOutputs(outputs);
-    setSelectedMic(prev => prev || inputs[1]?.deviceId || "");
+    setSelectedMic(prev => pickMic(inputs, prev));
     setSelectedOutput(prev => prev || outputs[0]?.deviceId || "");
   }, []);
 

@@ -138,6 +138,9 @@ async def transcribe_ws(ws: WebSocket):
         while True:
             message = await ws.receive()
 
+            if message["type"] == "websocket.disconnect":
+                raise WebSocketDisconnect(message.get("code", 1000))
+
             if "text" in message:
                 data = json.loads(message["text"])
 
@@ -165,10 +168,14 @@ async def transcribe_ws(ws: WebSocket):
                     if partial_task and not partial_task.done():
                         try:
                             await partial_task
+                        except WebSocketDisconnect:
+                            raise
                         except Exception:
                             pass
                     try:
                         await do_transcribe(is_final=True)
+                    except WebSocketDisconnect:
+                        raise
                     except Exception as e:
                         log.error("Final transcription error: %s", e)
                         await ws.send_json({"type": "error", "message": str(e)})

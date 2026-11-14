@@ -5,7 +5,7 @@ description = "Teleprompter"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
-    "edge-tts>=7.2.7",
+    "edge-tts>=7.3.1",
     "fastapi>=0.135.1",
     "faster-whisper",
     "imageio-ffmpeg>=0.6.0",
